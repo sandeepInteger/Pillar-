@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8f9fb;
+  --foreground: #111827;
+  --sidebar: #ffffff;
+  --sidebar-width: 260px;
+  --primary: #5d3fd3;
+  --primary-hover: #4a2fb8;
+  --primary-light: #ede9fe;
+  --primary-muted: #8b7cf0;
+  --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  --border: #e8eaef;
+  --muted: #6b7280;
+  --muted-light: #9ca3af;
+  --card: #ffffff;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --shadow-sm: 0 1px 3px rgba(17, 24, 39, 0.04), 0 1px 2px rgba(17, 24, 39, 0.02);
+  --shadow-md: 0 4px 16px rgba(17, 24, 39, 0.06);
+  --radius: 14px;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* Shared UI primitives */
+.pillar-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.pillar-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 10px;
+  background: var(--primary);
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: white;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.pillar-btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.pillar-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: white;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+  transition: background 0.15s;
+}
+
+.pillar-btn-secondary:hover {
+  background: #f9fafb;
+}
+
+.pillar-input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.pillar-input:focus {
+  border-color: var(--primary-muted);
+  box-shadow: 0 0 0 3px rgba(93, 63, 211, 0.12);
+}
+
+.pillar-gradient-bar {
+  background: var(--accent-gradient);
+  border-radius: 999px;
+}
+
+.pillar-sparkline {
+  background: linear-gradient(
+    180deg,
+    rgba(139, 92, 246, 0.15) 0%,
+    rgba(99, 102, 241, 0.05) 100%
+  );
+  border-radius: 8px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
