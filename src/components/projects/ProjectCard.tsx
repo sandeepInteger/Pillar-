@@ -15,8 +15,8 @@ export function ProjectCard({
   teamCount?: number;
 }) {
   return (
-    <div className="pillar-card p-5 transition hover:shadow-md">
-      <div className="flex items-start justify-between gap-4">
+    <div className="pillar-card p-4 sm:p-5 transition hover:shadow-md">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-base font-semibold">{project.name}</h3>
@@ -48,16 +48,16 @@ export function ProjectCard({
             Started {formatProjectDate(project.start_date)}
           </p>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex w-full gap-2 sm:w-auto sm:shrink-0">
           <Link
             href={`/projects/${project.id}`}
-            className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+            className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2 text-center text-sm font-medium hover:bg-gray-50 sm:flex-none sm:py-1.5"
           >
             View
           </Link>
           <Link
             href={`/projects/${project.id}/edit`}
-            className="rounded-lg bg-[var(--primary-light)] px-3 py-1.5 text-sm font-medium text-[var(--primary)] hover:bg-violet-100"
+            className="flex-1 rounded-lg bg-[var(--primary-light)] px-3 py-2 text-center text-sm font-medium text-[var(--primary)] hover:bg-violet-100 sm:flex-none sm:py-1.5"
           >
             Edit
           </Link>

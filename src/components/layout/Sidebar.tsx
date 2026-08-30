@@ -12,6 +12,7 @@ import {
   BarChart3,
   LogOut,
   Layers,
+  X,
 } from "lucide-react";
 import type { Profile } from "@/types/database";
 import { signOut } from "@/lib/actions/employees";
@@ -28,7 +29,12 @@ const menuSections = [
     items: [
       { href: "/people", label: "People", icon: Users, active: true },
       { href: "/projects", label: "Projects", icon: FolderKanban, active: true },
-      { href: "/attendance", label: "Time & Attendance", icon: Clock, active: true },
+      {
+        href: "/attendance",
+        label: "Time & Attendance",
+        icon: Clock,
+        active: true,
+      },
     ],
   },
   {
@@ -40,33 +46,48 @@ const menuSections = [
   },
   {
     label: "Reports",
-    items: [
-      { href: "#", label: "Analytics", icon: BarChart3, active: false },
-    ],
+    items: [{ href: "#", label: "Analytics", icon: BarChart3, active: false }],
   },
 ];
 
-export function Sidebar({ profile }: { profile: Profile | null }) {
+interface SidebarProps {
+  profile: Profile | null;
+  open: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ profile, open, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
     <aside
-      className="fixed inset-y-0 left-0 z-40 flex flex-col border-r border-[var(--border)] bg-[var(--sidebar)]"
-      style={{ width: "var(--sidebar-width)" }}
+      className={`fixed inset-y-0 left-0 z-50 flex w-[min(100vw,280px)] flex-col border-r border-[var(--border)] bg-[var(--sidebar)] transition-transform duration-300 ease-in-out lg:z-40 lg:w-[var(--sidebar-width)] lg:translate-x-0 ${
+        open ? "translate-x-0" : "-translate-x-full"
+      }`}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl pillar-gradient-bar shadow-sm">
-          <Layers className="h-5 w-5 text-white" />
+      {/* Logo + close (mobile) */}
+      <div className="flex items-center justify-between gap-3 px-4 py-5 sm:px-5 sm:py-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl pillar-gradient-bar shadow-sm">
+            <Layers className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-[var(--foreground)]">
+              Pillar
+            </h1>
+            <p className="text-[11px] text-[var(--muted-light)]">
+              Construction OS
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-lg font-bold tracking-tight text-[var(--foreground)]">
-            Pillar
-          </h1>
-          <p className="text-[11px] text-[var(--muted-light)]">
-            Construction OS
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 lg:hidden"
+          aria-label="Close menu"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Nav sections */}
@@ -103,6 +124,7 @@ export function Sidebar({ profile }: { profile: Profile | null }) {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={onClose}
                       className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
                         isActive
                           ? "bg-white text-[var(--primary)] shadow-sm ring-1 ring-[var(--border)]"

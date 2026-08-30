@@ -26,12 +26,15 @@ export function AttendanceFilters({ projects }: { projects: Project[] }) {
     router.push(`/attendance?${params.toString()}`);
   }
 
+  const selectClass =
+    "w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none sm:w-auto min-h-[44px]";
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
       <select
         value={searchParams.get("project") ?? ""}
         onChange={(e) => updateParam("project", e.target.value, "")}
-        className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
+        className={selectClass}
       >
         <option value="">All projects</option>
         {projects.map((p) => (
@@ -43,7 +46,7 @@ export function AttendanceFilters({ projects }: { projects: Project[] }) {
       <select
         value={searchParams.get("type") ?? "all"}
         onChange={(e) => updateParam("type", e.target.value)}
-        className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
+        className={selectClass}
       >
         {types.map((t) => (
           <option key={t.value} value={t.value}>

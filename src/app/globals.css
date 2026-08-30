@@ -26,6 +26,11 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 input,
@@ -53,6 +58,7 @@ textarea {
   font-weight: 600;
   color: white;
   transition: background 0.15s, transform 0.1s;
+  min-height: 44px;
 }
 
 .pillar-btn-primary:hover {
@@ -71,6 +77,7 @@ textarea {
   font-weight: 500;
   color: var(--foreground);
   transition: background 0.15s;
+  min-height: 44px;
 }
 
 .pillar-btn-secondary:hover {

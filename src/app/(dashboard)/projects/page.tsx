@@ -29,7 +29,7 @@ export default async function ProjectsPage() {
       >
         <Link
           href="/projects/new"
-          className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[var(--primary-hover)]"
+          className="pillar-btn-primary w-full justify-center sm:w-auto"
         >
           Add Project
         </Link>

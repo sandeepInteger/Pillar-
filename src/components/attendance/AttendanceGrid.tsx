@@ -148,35 +148,37 @@ export function AttendanceGrid({
   return (
     <div className="space-y-4">
       {/* Week navigation + summary */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pillar-card p-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-4 pillar-card p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex items-center justify-center gap-2 sm:justify-start">
           <Link
             href={`/attendance?week=${prevWeek}${typeQuery}${projectQuery}`}
-            className="rounded-lg border border-[var(--border)] p-2 hover:bg-gray-50"
+            className="rounded-lg border border-[var(--border)] p-2.5 hover:bg-gray-50"
+            aria-label="Previous week"
           >
             <ChevronLeft className="h-4 w-4" />
           </Link>
-          <div className="min-w-[200px] text-center">
-            <p className="text-sm font-semibold">{formatWeekRange(weekStart)}</p>
-            <p className="text-xs text-[var(--muted)]">Week starts Monday</p>
+          <div className="min-w-0 flex-1 text-center sm:min-w-[200px] sm:flex-none">
+            <p className="text-xs font-semibold sm:text-sm">{formatWeekRange(weekStart)}</p>
+            <p className="text-[10px] text-[var(--muted)] sm:text-xs">Week starts Monday</p>
           </div>
           <Link
             href={`/attendance?week=${nextWeek}${typeQuery}${projectQuery}`}
-            className="rounded-lg border border-[var(--border)] p-2 hover:bg-gray-50"
+            className="rounded-lg border border-[var(--border)] p-2.5 hover:bg-gray-50"
+            aria-label="Next week"
           >
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 text-sm">
-          <span>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <span className="text-center text-sm sm:text-left">
             <strong>{weekTotal}</strong> man-days this week
           </span>
           <button
             type="button"
             onClick={handleSave}
             disabled={loading}
-            className="pillar-btn-primary disabled:opacity-60"
+            className="pillar-btn-primary w-full justify-center disabled:opacity-60 sm:w-auto"
           >
             <Save className="h-4 w-4" />
             {loading ? "Saving..." : "Save Week"}
@@ -208,12 +210,15 @@ export function AttendanceGrid({
         ))}
       </div>
 
-      {/* Grid */}
-      <div className="overflow-x-auto pillar-card">
-        <table className="w-full min-w-[900px] text-sm">
+      {/* Grid — scroll horizontally on mobile */}
+      <p className="text-xs text-[var(--muted)] lg:hidden">
+        Swipe left on the table to see all days →
+      </p>
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0 pillar-card">
+        <table className="w-full min-w-[640px] text-sm sm:min-w-[900px]">
           <thead>
             <tr className="border-b border-[var(--border)] bg-gray-50">
-              <th className="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-left font-semibold">
+              <th className="sticky left-0 z-10 bg-gray-50 px-2 py-2 text-left text-xs font-semibold sm:px-4 sm:py-3 sm:text-sm">
                 Employee
               </th>
               {dates.map((date) => {
@@ -255,8 +260,8 @@ export function AttendanceGrid({
                   key={emp.id}
                   className="border-b border-gray-100 hover:bg-gray-50/50"
                 >
-                  <td className="sticky left-0 z-10 bg-white px-4 py-2">
-                    <div className="font-medium">{emp.full_name}</div>
+                  <td className="sticky left-0 z-10 bg-white px-2 py-2 sm:px-4">
+                    <div className="max-w-[120px] text-xs font-medium sm:max-w-none sm:text-sm">{emp.full_name}</div>
                     <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
                       <span>{emp.employee_code}</span>
                       <span

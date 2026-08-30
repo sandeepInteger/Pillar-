@@ -39,13 +39,13 @@ export default async function ProjectDetailPage({
       <PageHeader title={project.name} subtitle={project.project_code}>
         <Link
           href={`/attendance?project=${id}`}
-          className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium hover:bg-gray-50"
+          className="pillar-btn-secondary w-full justify-center sm:w-auto"
         >
           Mark attendance
         </Link>
         <Link
           href={`/projects/${id}/edit`}
-          className="inline-flex items-center gap-2 rounded-xl bg-[var(--primary-light)] px-4 py-2 text-sm font-medium text-[var(--primary)]"
+          className="pillar-btn-secondary w-full justify-center gap-2 sm:w-auto"
         >
           <Pencil className="h-4 w-4" />
           Edit

@@ -19,8 +19,8 @@ export function EmployeeCard({ employee }: { employee: EmployeeWithRelations }) 
   const extraPhones = employee.employee_phones.length - 1;
 
   return (
-    <div className="pillar-card p-5 transition hover:shadow-md">
-      <div className="flex items-start gap-4">
+    <div className="pillar-card p-4 sm:p-5 transition hover:shadow-md">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-100">
           {employee.photo_url ? (
             <Image
@@ -91,16 +91,16 @@ export function EmployeeCard({ employee }: { employee: EmployeeWithRelations }) 
           </p>
         </div>
 
-        <div className="flex shrink-0 gap-2">
+        <div className="flex w-full shrink-0 gap-2 sm:w-auto">
           <Link
             href={`/people/${employee.id}`}
-            className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+            className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2 text-center text-sm font-medium hover:bg-gray-50 sm:flex-none sm:py-1.5"
           >
             View
           </Link>
           <Link
             href={`/people/${employee.id}/edit`}
-            className="inline-flex items-center gap-1 rounded-lg bg-[var(--primary-light)] px-3 py-1.5 text-sm font-medium text-[var(--primary)] hover:bg-violet-100"
+            className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-[var(--primary-light)] px-3 py-2 text-sm font-medium text-[var(--primary)] hover:bg-violet-100 sm:flex-none sm:py-1.5"
           >
             <Pencil className="h-3.5 w-3.5" />
             Edit

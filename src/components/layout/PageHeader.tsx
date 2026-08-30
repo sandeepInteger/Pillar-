@@ -15,19 +15,22 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   return (
-    <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
+    <div className="mb-6 flex flex-col gap-4 sm:mb-8 lg:flex-row lg:items-start lg:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-xl font-bold tracking-tight text-[var(--foreground)] sm:text-2xl">
           {title}
         </h1>
         {subtitle && (
           <p className="mt-1 text-sm text-[var(--muted)]">{subtitle}</p>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
         {children}
         {showAddEmployee && (
-          <Link href="/people/new" className="pillar-btn-primary">
+          <Link
+            href="/people/new"
+            className="pillar-btn-primary w-full justify-center sm:w-auto"
+          >
             <Plus className="h-4 w-4" />
             Add Employee
           </Link>
