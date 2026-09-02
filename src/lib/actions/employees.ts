@@ -89,6 +89,10 @@ function buildEmployeePayload(data: EmployeeFormData) {
     aadhaar_last_4: emptyToNull(data.aadhaar_last_4),
     pan_number: emptyToNull(data.pan_number),
     notes: emptyToNull(data.notes),
+    daily_rate:
+      data.daily_rate.trim() === ""
+        ? null
+        : Number.parseFloat(data.daily_rate),
   };
 }
 
@@ -127,6 +131,7 @@ export async function createEmployee(data: EmployeeFormData) {
 
   revalidatePath("/");
   revalidatePath("/people");
+  revalidatePath("/salary");
   redirect(`/people/${employee.id}`);
 }
 
@@ -150,6 +155,7 @@ export async function updateEmployee(id: string, data: EmployeeFormData) {
 
   revalidatePath("/");
   revalidatePath("/people");
+  revalidatePath("/salary");
   revalidatePath(`/people/${id}`);
   redirect(`/people/${id}`);
 }

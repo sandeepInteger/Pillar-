@@ -39,6 +39,7 @@ export interface Employee {
   aadhaar_last_4: string | null;
   pan_number: string | null;
   notes: string | null;
+  daily_rate: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -109,9 +110,112 @@ export interface EmployeeFormData {
   aadhaar_last_4: string;
   pan_number: string;
   notes: string;
+  daily_rate: string;
   phones: PhoneInput[];
   payment_methods: PaymentInput[];
 }
+
+export interface SalaryRow {
+  employee: EmployeeWithRelations;
+  manDays: number;
+  dailyRate: number | null;
+  grossAmount: number | null;
+  totalPaidOut: number;
+  balanceDue: number | null;
+  hasPaymentMethod: boolean;
+}
+
+export interface SalarySummary {
+  rows: SalaryRow[];
+  totalManDays: number;
+  totalGross: number;
+  totalPaidOut: number;
+  totalBalanceDue: number;
+  employeesWithRate: number;
+  employeesMissingRate: number;
+  employeesMissingPayment: number;
+}
+
+export type SalaryPaymentType =
+  | "advance"
+  | "salary"
+  | "weekly_kharcha"
+  | "bonus"
+  | "deduction";
+
+export type SalaryPaymentMode = "upi" | "bank" | "cash";
+
+export interface SalaryPayment {
+  id: string;
+  employee_id: string;
+  payment_date: string;
+  amount: number;
+  payment_type: SalaryPaymentType;
+  payment_mode: SalaryPaymentMode | null;
+  payment_app: string | null;
+  payment_reference: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface SalaryPaymentFormData {
+  payment_date: string;
+  amount: string;
+  payment_type: SalaryPaymentType;
+  payment_mode: SalaryPaymentMode;
+  payment_app: string;
+  payment_reference: string;
+  notes: string;
+}
+
+export interface SalaryLedgerEntry {
+  id: string;
+  date: string;
+  label: string;
+  paymentType: SalaryPaymentType | "earned";
+  paymentMode: SalaryPaymentMode | null;
+  paymentApp: string | null;
+  paymentReference: string | null;
+  paidOut: number;
+  earned: number;
+  isCalculated?: boolean;
+}
+
+export interface EmployeeSalaryDetail {
+  employee: EmployeeWithRelations;
+  month: string;
+  manDays: number;
+  dailyRate: number | null;
+  grossAmount: number | null;
+  totalPaidOut: number;
+  balanceDue: number | null;
+  ledger: SalaryLedgerEntry[];
+  payments: SalaryPayment[];
+}
+
+export const SALARY_PAYMENT_TYPE_LABELS: Record<SalaryPaymentType, string> = {
+  advance: "Advance",
+  salary: "Salary",
+  weekly_kharcha: "Weekly Kharcha",
+  bonus: "Bonus",
+  deduction: "Deduction",
+};
+
+export const SALARY_PAYMENT_MODE_LABELS: Record<SalaryPaymentMode, string> = {
+  upi: "UPI",
+  bank: "Bank Account",
+  cash: "Cash",
+};
+
+export const SALARY_PAYMENT_APP_OPTIONS = [
+  "PhonePe",
+  "Google Pay",
+  "Paytm",
+  "BHIM",
+  "Amazon Pay",
+  "Other",
+] as const;
 
 export const EMPLOYEE_TYPE_LABELS: Record<EmployeeType, string> = {
   founder: "Founder",
@@ -247,5 +351,66 @@ export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
 export const MULTI_PROJECT_TYPES: EmployeeType[] = [
   "engineer",
   "staff",
+  "founder",
+];
+
+export interface MonthWorkStats {
+  month: string;
+  monthLabel: string;
+  monthShort: string;
+  labourWorkers: number;
+  foremanWorkers: number;
+  totalSiteWorkers: number;
+  labourManDays: number;
+  foremanManDays: number;
+  totalSiteManDays: number;
+  allManDays: number;
+  allWorkers: number;
+}
+
+export interface MonthSalaryTypeStats {
+  month: string;
+  monthLabel: string;
+  monthShort: string;
+  employeeType: EmployeeType;
+  workers: number;
+  manDays: number;
+  grossEarned: number;
+  paidOut: number;
+  balanceDue: number;
+}
+
+export interface MonthSalaryTotals {
+  month: string;
+  monthLabel: string;
+  monthShort: string;
+  grossEarned: number;
+  paidOut: number;
+  balanceDue: number;
+}
+
+export interface AnalyticsData {
+  fromMonth: string;
+  toMonth: string;
+  workByMonth: MonthWorkStats[];
+  salaryByType: MonthSalaryTypeStats[];
+  salaryTotalsByMonth: MonthSalaryTotals[];
+  selectedMonthWork: MonthWorkStats | null;
+  selectedMonthSalaryTotals: MonthSalaryTotals | null;
+}
+
+export const EMPLOYEE_TYPE_CHART_COLORS: Record<EmployeeType, string> = {
+  labour: "#64748b",
+  foreman: "#d97706",
+  engineer: "#9333ea",
+  staff: "#6366f1",
+  founder: "#7c3aed",
+};
+
+export const ANALYTICS_SALARY_TYPES: EmployeeType[] = [
+  "labour",
+  "foreman",
+  "staff",
+  "engineer",
   "founder",
 ];

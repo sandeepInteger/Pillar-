@@ -217,6 +217,18 @@ export function EmployeeForm({ initialData, employeeId }: EmployeeFormProps) {
               onChange={(e) => updateField("end_date", e.target.value)}
             />
           </div>
+          <div>
+            <label className={labelClass}>Daily Rate (₹)</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              className={inputClass}
+              placeholder="e.g. 800 for labour daily wage"
+              value={form.daily_rate}
+              onChange={(e) => updateField("daily_rate", e.target.value)}
+            />
+          </div>
         </div>
       </section>
 

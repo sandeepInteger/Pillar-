@@ -7,6 +7,7 @@ import {
   Users,
   FolderKanban,
   Clock,
+  Banknote,
   Receipt,
   FileText,
   BarChart3,
@@ -35,6 +36,12 @@ const menuSections = [
         icon: Clock,
         active: true,
       },
+      {
+        href: "/salary",
+        label: "Salary",
+        icon: Banknote,
+        active: true,
+      },
     ],
   },
   {
@@ -46,7 +53,9 @@ const menuSections = [
   },
   {
     label: "Reports",
-    items: [{ href: "#", label: "Analytics", icon: BarChart3, active: false }],
+    items: [
+      { href: "/analytics", label: "Analytics", icon: BarChart3, active: true },
+    ],
   },
 ];
 

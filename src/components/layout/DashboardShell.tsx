@@ -51,10 +51,7 @@ export function DashboardShell({ profile, children }: DashboardShellProps) {
       />
 
       <div className="flex min-h-screen flex-col lg:ml-[var(--sidebar-width)]">
-        <TopHeader
-          profile={profile}
-          onMenuClick={() => setSidebarOpen(true)}
-        />
+        <TopHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
           {children}
         </main>

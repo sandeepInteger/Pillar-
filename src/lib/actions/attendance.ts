@@ -38,6 +38,7 @@ export async function saveWeekAttendance(
   }
 
   revalidatePath("/attendance");
+  revalidatePath("/salary");
   revalidatePath("/");
   return { success: true, count: rows.length };
 }

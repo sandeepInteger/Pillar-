@@ -36,6 +36,33 @@ export async function getActiveEmployeesForAttendance(filters?: {
   return data ?? [];
 }
 
+export async function getRangeAttendance(
+  startDate: string,
+  endDate: string,
+  projectId?: string
+): Promise<AttendanceRecord[]> {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("attendance_records")
+    .select("*")
+    .gte("attendance_date", startDate)
+    .lte("attendance_date", endDate);
+
+  if (projectId) {
+    query = query.or(`project_id.eq.${projectId},project_id.is.null`);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("getRangeAttendance:", error.message);
+    return [];
+  }
+
+  return data ?? [];
+}
+
 export async function getWeekAttendance(
   weekStart: string,
   projectId?: string

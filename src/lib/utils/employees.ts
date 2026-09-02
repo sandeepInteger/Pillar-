@@ -19,6 +19,7 @@ export function getEmptyFormData(): EmployeeFormData {
     aadhaar_last_4: "",
     pan_number: "",
     notes: "",
+    daily_rate: "",
     phones: [{ phone_number: "", label: "primary", is_primary: true }],
     payment_methods: [],
   };
@@ -45,6 +46,8 @@ export function employeeToFormData(
     aadhaar_last_4: employee.aadhaar_last_4 ?? "",
     pan_number: employee.pan_number ?? "",
     notes: employee.notes ?? "",
+    daily_rate:
+      employee.daily_rate != null ? String(employee.daily_rate) : "",
     phones:
       employee.employee_phones.length > 0
         ? employee.employee_phones.map((p) => ({
