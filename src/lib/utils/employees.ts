@@ -1,4 +1,8 @@
 import type { EmployeeFormData, EmployeeWithRelations } from "@/types/database";
+import {
+  DEFAULT_MONTHLY_SL_DAYS,
+  DEFAULT_SALARY_TYPE,
+} from "@/types/database";
 
 export function getEmptyFormData(): EmployeeFormData {
   return {
@@ -19,7 +23,10 @@ export function getEmptyFormData(): EmployeeFormData {
     aadhaar_last_4: "",
     pan_number: "",
     notes: "",
+    salary_type: "daily",
     daily_rate: "",
+    monthly_salary: "",
+    monthly_sl_days: "0",
     phones: [{ phone_number: "", label: "primary", is_primary: true }],
     payment_methods: [],
   };
@@ -46,8 +53,12 @@ export function employeeToFormData(
     aadhaar_last_4: employee.aadhaar_last_4 ?? "",
     pan_number: employee.pan_number ?? "",
     notes: employee.notes ?? "",
+    salary_type: employee.salary_type ?? DEFAULT_SALARY_TYPE[employee.employee_type],
     daily_rate:
       employee.daily_rate != null ? String(employee.daily_rate) : "",
+    monthly_salary:
+      employee.monthly_salary != null ? String(employee.monthly_salary) : "",
+    monthly_sl_days: String(employee.monthly_sl_days ?? DEFAULT_MONTHLY_SL_DAYS[employee.employee_type] ?? 0),
     phones:
       employee.employee_phones.length > 0
         ? employee.employee_phones.map((p) => ({

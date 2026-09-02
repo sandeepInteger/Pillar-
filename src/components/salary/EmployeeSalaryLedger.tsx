@@ -179,12 +179,38 @@ export function EmployeeSalaryLedger({
         </Link>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="rounded-xl border border-[var(--border)] bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-[var(--muted)]">
+            Opening balance
+          </p>
+          <p className="mt-1 text-2xl font-bold text-amber-700">
+            {formatCurrency(detail.openingBalance)}
+          </p>
+          {detail.openingBalance !== 0 && (
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Carried from earlier months
+            </p>
+          )}
+        </div>
         <div className="rounded-xl border border-[var(--border)] bg-white p-4">
           <p className="text-xs uppercase tracking-wide text-[var(--muted)]">
             Man-days
           </p>
           <p className="mt-1 text-2xl font-bold">{detail.manDays}</p>
+        </div>
+        <div className="rounded-xl border border-[var(--border)] bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-[var(--muted)]">
+            SL / Absent
+          </p>
+          <p className="mt-1 text-2xl font-bold">
+            {detail.slDays} / {detail.absentDays}
+          </p>
+          {detail.slAllowance > 0 && (
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              {detail.slAllowance} SL allowed/mo
+            </p>
+          )}
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-white p-4">
           <p className="text-xs uppercase tracking-wide text-[var(--muted)]">
@@ -195,10 +221,15 @@ export function EmployeeSalaryLedger({
               ? formatCurrency(detail.grossAmount)
               : "—"}
           </p>
+          {detail.salaryDeduction > 0 && (
+            <p className="mt-1 text-xs text-amber-700">
+              −{formatCurrency(detail.salaryDeduction)} deduction
+            </p>
+          )}
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-white p-4">
           <p className="text-xs uppercase tracking-wide text-[var(--muted)]">
-            Paid out
+            This month paid
           </p>
           <p className="mt-1 text-2xl font-bold">
             {formatCurrency(detail.totalPaidOut)}
@@ -206,13 +237,18 @@ export function EmployeeSalaryLedger({
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-white p-4">
           <p className="text-xs uppercase tracking-wide text-[var(--muted)]">
-            Balance due
+            Total balance due
           </p>
           <p className="mt-1 text-2xl font-bold text-emerald-700">
             {detail.balanceDue != null
               ? formatCurrency(detail.balanceDue)
               : "—"}
           </p>
+          {detail.monthBalance != null && detail.monthBalance !== detail.balanceDue && (
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              This month net: {formatCurrency(detail.monthBalance)}
+            </p>
+          )}
         </div>
       </div>
 
@@ -408,8 +444,9 @@ export function EmployeeSalaryLedger({
                   colSpan={8}
                   className="px-4 py-10 text-center text-[var(--muted)]"
                 >
-                  No payments recorded this month. Add an advance, weekly
-                  kharcha, or salary payout.
+                  No entries this month yet. Unpaid salary from earlier months
+                  appears as opening balance. Salary is posted at month-end when
+                  attendance is complete.
                 </td>
               </tr>
             ) : (
@@ -452,7 +489,7 @@ export function EmployeeSalaryLedger({
                     {formatCurrency(entry.balance)}
                   </td>
                   <td className="px-4 py-3">
-                    {!entry.isCalculated && entry.id !== "earned" && (
+                    {!entry.isCalculated && entry.id !== "earned" && entry.id !== "opening" && (
                       <div className="flex justify-end gap-1">
                         <button
                           type="button"
@@ -483,15 +520,15 @@ export function EmployeeSalaryLedger({
             <tfoot>
               <tr className="bg-[var(--background)] font-semibold">
                 <td className="px-4 py-3" colSpan={4}>
-                  Month total
+                  Month closing balance
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums">
                   {formatCurrency(detail.totalPaidOut)}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums">
-                  {detail.grossAmount != null
-                    ? formatCurrency(detail.grossAmount)
-                    : "—"}
+                  {formatCurrency(
+                    detail.openingBalance + (detail.grossAmount ?? 0)
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums text-[var(--primary)]">
                   {detail.balanceDue != null

@@ -39,7 +39,10 @@ export interface Employee {
   aadhaar_last_4: string | null;
   pan_number: string | null;
   notes: string | null;
+  salary_type: SalaryType;
   daily_rate: number | null;
+  monthly_salary: number | null;
+  monthly_sl_days: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -110,7 +113,10 @@ export interface EmployeeFormData {
   aadhaar_last_4: string;
   pan_number: string;
   notes: string;
+  salary_type: SalaryType;
   daily_rate: string;
+  monthly_salary: string;
+  monthly_sl_days: string;
   phones: PhoneInput[];
   payment_methods: PaymentInput[];
 }
@@ -118,9 +124,18 @@ export interface EmployeeFormData {
 export interface SalaryRow {
   employee: EmployeeWithRelations;
   manDays: number;
+  absentDays: number;
+  slDays: number;
   dailyRate: number | null;
+  monthlySalary: number | null;
+  salaryType: SalaryType;
+  rateDisplay: string | null;
   grossAmount: number | null;
+  salaryDeduction: number;
+  slAllowance: number;
   totalPaidOut: number;
+  openingBalance: number;
+  monthBalance: number | null;
   balanceDue: number | null;
   hasPaymentMethod: boolean;
 }
@@ -173,7 +188,7 @@ export interface SalaryLedgerEntry {
   id: string;
   date: string;
   label: string;
-  paymentType: SalaryPaymentType | "earned";
+  paymentType: SalaryPaymentType | "earned" | "opening";
   paymentMode: SalaryPaymentMode | null;
   paymentApp: string | null;
   paymentReference: string | null;
@@ -186,9 +201,17 @@ export interface EmployeeSalaryDetail {
   employee: EmployeeWithRelations;
   month: string;
   manDays: number;
+  absentDays: number;
+  slDays: number;
   dailyRate: number | null;
+  monthlySalary: number | null;
+  salaryType: SalaryType;
+  slAllowance: number;
+  salaryDeduction: number;
   grossAmount: number | null;
   totalPaidOut: number;
+  openingBalance: number;
+  monthBalance: number | null;
   balanceDue: number | null;
   ledger: SalaryLedgerEntry[];
   payments: SalaryPayment[];
@@ -239,7 +262,9 @@ export const EMPLOYEE_TYPE_COLORS: Record<EmployeeType, string> = {
   labour: "bg-slate-100 text-slate-700",
 };
 
-export type ShiftType = "absent" | "half" | "full" | "double";
+export type ShiftType = "absent" | "half" | "full" | "double" | "sl";
+
+export type SalaryType = "daily" | "monthly";
 
 export interface AttendanceRecord {
   id: string;
@@ -266,6 +291,7 @@ export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   half: "Half Shift",
   full: "Full Shift",
   double: "Double Shift",
+  sl: "SL (Paid Leave)",
 };
 
 export const SHIFT_TYPE_SHORT: Record<ShiftType, string> = {
@@ -273,6 +299,7 @@ export const SHIFT_TYPE_SHORT: Record<ShiftType, string> = {
   half: "½",
   full: "F",
   double: "2×",
+  sl: "SL",
 };
 
 export const SHIFT_DAY_UNITS: Record<ShiftType, number> = {
@@ -280,6 +307,7 @@ export const SHIFT_DAY_UNITS: Record<ShiftType, number> = {
   half: 0.5,
   full: 1,
   double: 2,
+  sl: 0,
 };
 
 export const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
@@ -287,6 +315,29 @@ export const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
   half: "bg-amber-50 text-amber-800 border-amber-100",
   full: "bg-emerald-50 text-emerald-700 border-emerald-100",
   double: "bg-violet-50 text-violet-700 border-violet-100",
+  sl: "bg-sky-50 text-sky-700 border-sky-100",
+};
+
+export const SALARY_TYPE_LABELS: Record<SalaryType, string> = {
+  daily: "Daily wage",
+  monthly: "Fixed monthly",
+};
+
+/** Standard working days/month for monthly salary deductions (India sites) */
+export const STANDARD_MONTH_WORKING_DAYS = 26;
+
+export const DEFAULT_MONTHLY_SL_DAYS: Partial<Record<EmployeeType, number>> = {
+  engineer: 1,
+  staff: 1,
+  foreman: 0,
+};
+
+export const DEFAULT_SALARY_TYPE: Record<EmployeeType, SalaryType> = {
+  labour: "daily",
+  foreman: "monthly",
+  engineer: "monthly",
+  staff: "monthly",
+  founder: "monthly",
 };
 
 export type ProjectStatus = "active" | "on_hold" | "completed";

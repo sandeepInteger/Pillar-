@@ -150,6 +150,11 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
       <div>
         <h2 className="mb-4 text-lg font-semibold">
           {work?.monthLabel ?? "Selected month"} snapshot
+          {data.fromMonth !== data.toMonth && (
+            <span className="ml-2 text-sm font-normal text-[var(--muted)]">
+              (latest month in range)
+            </span>
+          )}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard

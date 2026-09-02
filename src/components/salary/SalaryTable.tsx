@@ -103,9 +103,9 @@ export function SalaryTable({
       {(summary.employeesMissingRate > 0 ||
         summary.employeesMissingPayment > 0) && (
         <p className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Set <strong>daily rate</strong> and <strong>payment details</strong> on
-          employee profiles. Click an employee to record advances and view their
-          monthly ledger.
+          Set <strong>pay rate</strong> (daily or monthly) and{" "}
+          <strong>payment details</strong> on employee profiles. Click an employee
+          to record advances and view their monthly ledger.
         </p>
       )}
 
@@ -116,10 +116,10 @@ export function SalaryTable({
               <th className="px-4 py-3 font-semibold">Employee</th>
               <th className="px-4 py-3 font-semibold">Type</th>
               <th className="px-4 py-3 font-semibold text-right">Man-days</th>
-              <th className="px-4 py-3 font-semibold text-right">Daily rate</th>
+              <th className="px-4 py-3 font-semibold text-right">Rate</th>
               <th className="px-4 py-3 font-semibold text-right">Gross</th>
               <th className="px-4 py-3 font-semibold text-right">Paid out</th>
-              <th className="px-4 py-3 font-semibold text-right">Balance</th>
+              <th className="px-4 py-3 font-semibold text-right">Balance due</th>
               <th className="px-4 py-3 font-semibold">Payout</th>
             </tr>
           </thead>
@@ -168,16 +168,21 @@ export function SalaryTable({
                     <td className="px-4 py-3 text-right font-medium tabular-nums">
                       {row.manDays}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {row.dailyRate != null ? (
-                        formatCurrency(row.dailyRate)
+                    <td className="px-4 py-3 text-right tabular-nums text-xs">
+                      {row.rateDisplay ? (
+                        row.rateDisplay
                       ) : (
                         <Link
                           href={`/people/${row.employee.id}/edit`}
-                          className="text-xs font-medium text-amber-600 hover:underline"
+                          className="font-medium text-amber-600 hover:underline"
                         >
-                          Set rate
+                          Set pay
                         </Link>
+                      )}
+                      {row.salaryType === "monthly" && row.slDays > 0 && (
+                        <p className="text-[var(--muted)]">
+                          {row.slDays} SL used
+                        </p>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums">
@@ -192,6 +197,11 @@ export function SalaryTable({
                       {row.balanceDue != null
                         ? formatCurrency(row.balanceDue)
                         : "—"}
+                      {row.openingBalance !== 0 && (
+                        <p className="text-[10px] font-normal text-amber-700">
+                          incl. {formatCurrency(row.openingBalance)} opening
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {payment ? (
@@ -237,8 +247,10 @@ export function SalaryTable({
       </div>
 
       <p className="text-xs text-[var(--muted)]">
-        Monthly wage = man-days × daily rate from attendance. Advances and payouts
-        are recorded per employee. Click a name to open the salary ledger.
+        Daily staff: gross = man-days × daily rate. Monthly staff (engineer,
+        foreman, staff): fixed salary minus unpaid absences; SL days within
+        allowance are paid. Unpaid salary carries forward as opening balance in
+        the next month. Click a name to open the salary ledger.
       </p>
     </div>
   );

@@ -23,7 +23,12 @@ export default async function AnalyticsPage({
   const fromMonth = params.from ?? defaults.fromMonth;
   const toMonth =
     params.to && params.to >= fromMonth ? params.to : defaults.toMonth;
-  const selectedMonth = params.month ?? toMonth;
+  const selectedMonth =
+    params.month &&
+    params.month >= fromMonth &&
+    params.month <= toMonth
+      ? params.month
+      : toMonth;
 
   const data = await getAnalyticsData(fromMonth, toMonth, selectedMonth);
 

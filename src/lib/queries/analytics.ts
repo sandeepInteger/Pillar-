@@ -8,24 +8,31 @@ import type {
 } from "@/types/database";
 import { ANALYTICS_SALARY_TYPES } from "@/types/database";
 import {
+  addMonths,
+  aggregateAttendanceForSalary,
+  computeGrossSalary,
   formatMonthLabel,
   formatMonthShort,
   getCurrentMonth,
-  addMonths,
   getMonthDateRange,
   getMonthsInRange,
   paymentSignedAmount,
 } from "@/lib/utils/salary";
+import type { EmployeeWithRelations, ShiftType } from "@/types/database";
 
 interface EmployeeRow {
   id: string;
   employee_type: EmployeeType;
+  salary_type: string | null;
   daily_rate: number | null;
+  monthly_salary: number | null;
+  monthly_sl_days: number | null;
 }
 
 interface AttendanceRow {
   employee_id: string;
   attendance_date: string;
+  shift_type: string;
   day_units: number;
 }
 
@@ -87,10 +94,10 @@ export async function getAnalyticsData(
   const [employeesRes, attendanceRes, paymentsRes] = await Promise.all([
     supabase
       .from("employees")
-      .select("id, employee_type, daily_rate"),
+      .select("id, employee_type, salary_type, daily_rate, monthly_salary, monthly_sl_days"),
     supabase
       .from("attendance_records")
-      .select("employee_id, attendance_date, day_units")
+      .select("employee_id, attendance_date, shift_type, day_units")
       .gte("attendance_date", start)
       .lte("attendance_date", end),
     supabase
@@ -165,29 +172,54 @@ export async function getAnalyticsData(
   }
 
   const workersByMonthType = new Map<string, Set<string>>();
+  const attendanceByEmployeeMonth = new Map<
+    string,
+    Array<{ shift_type: ShiftType; day_units: number }>
+  >();
 
   for (const record of attendance) {
     const month = monthFromDate(record.attendance_date);
-    const employee = employeeMap.get(record.employee_id);
-    if (!employee || !salaryByTypeMap.has(`${month}:${employee.employee_type}`))
-      continue;
+    const empKey = `${record.employee_id}:${month}`;
+    const list = attendanceByEmployeeMonth.get(empKey) ?? [];
+    list.push({
+      shift_type: record.shift_type as ShiftType,
+      day_units: Number(record.day_units),
+    });
+    attendanceByEmployeeMonth.set(empKey, list);
+  }
 
-    const units = Number(record.day_units);
-    if (units <= 0) continue;
+  for (const month of months) {
+    for (const employee of employees) {
+      const empKey = `${employee.id}:${month}`;
+      const empRecords = attendanceByEmployeeMonth.get(empKey) ?? [];
+      const breakdown = aggregateAttendanceForSalary(empRecords);
+      const typeKey = `${month}:${employee.employee_type}`;
+      const stats = salaryByTypeMap.get(typeKey);
+      if (!stats) continue;
 
-    const key = `${month}:${employee.employee_type}`;
-    const stats = salaryByTypeMap.get(key)!;
-    stats.manDays = Math.round((stats.manDays + units) * 100) / 100;
+      stats.manDays = Math.round((stats.manDays + breakdown.manDays) * 100) / 100;
 
-    const rate =
-      employee.daily_rate != null ? Number(employee.daily_rate) : null;
-    if (rate != null) {
-      stats.grossEarned =
-        Math.round((stats.grossEarned + units * rate) * 100) / 100;
+      const gross = computeGrossSalary(
+        {
+          salary_type:
+            employee.salary_type === "monthly" ? "monthly" : "daily",
+          daily_rate: employee.daily_rate,
+          monthly_salary: employee.monthly_salary,
+          monthly_sl_days: Number(employee.monthly_sl_days ?? 0),
+        },
+        breakdown
+      );
+      if (gross.grossAmount != null) {
+        stats.grossEarned =
+          Math.round((stats.grossEarned + gross.grossAmount) * 100) / 100;
+      }
+
+      if (breakdown.manDays > 0 || breakdown.slDays > 0) {
+        if (!workersByMonthType.has(typeKey))
+          workersByMonthType.set(typeKey, new Set());
+        workersByMonthType.get(typeKey)!.add(employee.id);
+      }
     }
-
-    if (!workersByMonthType.has(key)) workersByMonthType.set(key, new Set());
-    workersByMonthType.get(key)!.add(record.employee_id);
   }
 
   for (const payment of payments) {

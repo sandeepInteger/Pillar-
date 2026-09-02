@@ -98,6 +98,7 @@ export async function getAttendanceSummary(weekStart: string) {
     half: 0,
     full: 0,
     double: 0,
+    sl: 0,
   };
 
   let totalDayUnits = 0;

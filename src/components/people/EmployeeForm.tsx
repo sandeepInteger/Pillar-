@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
-import type { EmployeeFormData, PaymentMethodType } from "@/types/database";
+import type { EmployeeFormData, PaymentMethodType, SalaryType } from "@/types/database";
 import {
+  DEFAULT_MONTHLY_SL_DAYS,
+  DEFAULT_SALARY_TYPE,
   EMPLOYEE_TYPE_LABELS,
   EMPLOYEE_STATUS_LABELS,
+  SALARY_TYPE_LABELS,
 } from "@/types/database";
 import { createEmployee, updateEmployee } from "@/lib/actions/employees";
 
@@ -157,12 +160,17 @@ export function EmployeeForm({ initialData, employeeId }: EmployeeFormProps) {
             <select
               className={inputClass}
               value={form.employee_type}
-              onChange={(e) =>
-                updateField(
-                  "employee_type",
-                  e.target.value as EmployeeFormData["employee_type"]
-                )
-              }
+              onChange={(e) => {
+                const employee_type = e.target.value as EmployeeFormData["employee_type"];
+                setForm((prev) => ({
+                  ...prev,
+                  employee_type,
+                  salary_type: DEFAULT_SALARY_TYPE[employee_type],
+                  monthly_sl_days: String(
+                    DEFAULT_MONTHLY_SL_DAYS[employee_type] ?? 0
+                  ),
+                }));
+              }}
             >
               {Object.entries(EMPLOYEE_TYPE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -217,18 +225,89 @@ export function EmployeeForm({ initialData, employeeId }: EmployeeFormProps) {
               onChange={(e) => updateField("end_date", e.target.value)}
             />
           </div>
+        </div>
+      </section>
+
+      {/* Pay & Salary */}
+      <section className="pillar-card p-6">
+        <h2 className="mb-4 text-lg font-semibold">Pay & Salary</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>Daily Rate (₹)</label>
-            <input
-              type="number"
-              min="0"
-              step="1"
+            <label className={labelClass}>Pay type *</label>
+            <select
               className={inputClass}
-              placeholder="e.g. 800 for labour daily wage"
-              value={form.daily_rate}
-              onChange={(e) => updateField("daily_rate", e.target.value)}
-            />
+              value={form.salary_type}
+              onChange={(e) => {
+                const salary_type = e.target.value as SalaryType;
+                setForm((prev) => ({
+                  ...prev,
+                  salary_type,
+                  monthly_sl_days:
+                    salary_type === "monthly"
+                      ? String(
+                          DEFAULT_MONTHLY_SL_DAYS[prev.employee_type] ?? 0
+                        )
+                      : "0",
+                }));
+              }}
+            >
+              {Object.entries(SALARY_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </div>
+
+          {form.salary_type === "daily" ? (
+            <div>
+              <label className={labelClass}>Daily rate (₹)</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                className={inputClass}
+                placeholder="e.g. 800 for labour"
+                value={form.daily_rate}
+                onChange={(e) => updateField("daily_rate", e.target.value)}
+              />
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className={labelClass}>Monthly salary (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  className={inputClass}
+                  placeholder="e.g. 45000 for engineer"
+                  value={form.monthly_salary}
+                  onChange={(e) =>
+                    updateField("monthly_salary", e.target.value)
+                  }
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Paid SL days / month</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  className={inputClass}
+                  placeholder="e.g. 1 for engineer"
+                  value={form.monthly_sl_days}
+                  onChange={(e) =>
+                    updateField("monthly_sl_days", e.target.value)
+                  }
+                />
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  SL days are paid and not deducted. Mark SL in attendance on
+                  holidays or leave.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </section>
 

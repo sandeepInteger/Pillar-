@@ -20,7 +20,7 @@ import {
 } from "@/lib/utils/attendance";
 import { EMPLOYEE_TYPE_LABELS, EMPLOYEE_TYPE_COLORS } from "@/types/database";
 
-const SHIFT_OPTIONS: ShiftType[] = ["absent", "half", "full", "double"];
+const SHIFT_OPTIONS: ShiftType[] = ["absent", "sl", "half", "full", "double"];
 
 interface AttendanceGridProps {
   employees: Employee[];
@@ -326,8 +326,8 @@ export function AttendanceGrid({
       </div>
 
       <p className="text-xs text-[var(--muted)]">
-        Man-day units: Absent = 0 · Half = 0.5 · Full = 1 · Double = 2. Row
-        totals feed payroll in the next phase.
+        Man-day units: Absent = 0 · SL = paid leave · Half = 0.5 · Full = 1 ·
+        Double = 2. Monthly staff: mark SL for paid holidays (not deducted).
       </p>
     </div>
   );

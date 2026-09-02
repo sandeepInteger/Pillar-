@@ -89,10 +89,19 @@ function buildEmployeePayload(data: EmployeeFormData) {
     aadhaar_last_4: emptyToNull(data.aadhaar_last_4),
     pan_number: emptyToNull(data.pan_number),
     notes: emptyToNull(data.notes),
+    salary_type: data.salary_type,
     daily_rate:
-      data.daily_rate.trim() === ""
-        ? null
-        : Number.parseFloat(data.daily_rate),
+      data.salary_type === "daily" && data.daily_rate.trim() !== ""
+        ? Number.parseFloat(data.daily_rate)
+        : null,
+    monthly_salary:
+      data.salary_type === "monthly" && data.monthly_salary.trim() !== ""
+        ? Number.parseFloat(data.monthly_salary)
+        : null,
+    monthly_sl_days:
+      data.salary_type === "monthly"
+        ? Number.parseFloat(data.monthly_sl_days) || 0
+        : 0,
   };
 }
 
