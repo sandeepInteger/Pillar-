@@ -1,22 +1,35 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { sortEmployeesByHierarchy } from "@/lib/utils/employees";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Save } from "lucide-react";
-import type { AttendanceRecord, Employee, ShiftType } from "@/types/database";
+import type {
+  AttendanceRecord,
+  Employee,
+  HourlyAttendanceCell,
+  ShiftType,
+} from "@/types/database";
 import {
   SHIFT_TYPE_COLORS,
   SHIFT_TYPE_LABELS,
   SHIFT_TYPE_SHORT,
+  STANDARD_SHIFT_HOURS,
+  usesShiftAttendance,
 } from "@/types/database";
 import { saveWeekAttendance } from "@/lib/actions/attendance";
 import {
   addWeeks,
   attendanceCellKey,
   formatDayHeader,
+  formatHourlyAttendanceSummary,
   formatWeekRange,
   getWeekDates,
+  hourlyCellToInput,
+  recordToHourlyCell,
   sumDayUnits,
+  sumHourlyDayUnits,
+  sumHourlyOvertime,
 } from "@/lib/utils/attendance";
 import { EMPLOYEE_TYPE_LABELS, EMPLOYEE_TYPE_COLORS } from "@/types/database";
 
@@ -65,6 +78,45 @@ function buildInitialShifts(
   return map;
 }
 
+function buildInitialHourlyCells(
+  employees: Employee[],
+  dates: string[],
+  records: AttendanceRecord[],
+  projectId?: string
+): Record<string, HourlyAttendanceCell> {
+  const map: Record<string, HourlyAttendanceCell> = {};
+
+  for (const emp of employees) {
+    if (usesShiftAttendance(emp.employee_type)) continue;
+    for (const date of dates) {
+      const key = attendanceCellKey(emp.id, date);
+      const record = records.find(
+        (r) => r.employee_id === emp.id && r.attendance_date === date
+      );
+
+      if (!record) {
+        map[key] = { status: "absent", hours: 0 };
+        continue;
+      }
+
+      if (projectId) {
+        if (record.project_id === projectId || record.project_id === null) {
+          map[key] = recordToHourlyCell(
+            record.shift_type,
+            record.hours_worked
+          );
+        } else {
+          map[key] = { status: "absent", hours: 0 };
+        }
+      } else {
+        map[key] = recordToHourlyCell(record.shift_type, record.hours_worked);
+      }
+    }
+  }
+
+  return map;
+}
+
 export function AttendanceGrid({
   employees,
   weekStart,
@@ -73,9 +125,16 @@ export function AttendanceGrid({
   projectId,
 }: AttendanceGridProps) {
   const dates = useMemo(() => getWeekDates(weekStart), [weekStart]);
+  const sortedEmployees = useMemo(
+    () => sortEmployeesByHierarchy(employees),
+    [employees]
+  );
   const [shifts, setShifts] = useState<Record<string, ShiftType>>(() =>
     buildInitialShifts(employees, dates, records, projectId)
   );
+  const [hourlyCells, setHourlyCells] = useState<
+    Record<string, HourlyAttendanceCell>
+  >(() => buildInitialHourlyCells(employees, dates, records, projectId));
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(
     null
@@ -96,9 +155,26 @@ export function AttendanceGrid({
     setShifts((prev) => {
       const next = { ...prev };
       for (const emp of employees) {
+        if (!usesShiftAttendance(emp.employee_type)) continue;
         next[attendanceCellKey(emp.id, date)] = shift;
       }
       return next;
+    });
+  }
+
+  function setHourlyCell(
+    employeeId: string,
+    date: string,
+    patch: Partial<HourlyAttendanceCell>
+  ) {
+    const key = attendanceCellKey(employeeId, date);
+    setHourlyCells((prev) => {
+      const current = prev[key] ?? { status: "absent" as const, hours: 0 };
+      const next = { ...current, ...patch };
+      if (next.status === "absent") next.hours = 0;
+      if (next.status === "sl") next.hours = 0;
+      if (next.status === "work" && next.hours <= 0) next.hours = 8;
+      return { ...prev, [key]: next };
     });
   }
 
@@ -106,15 +182,29 @@ export function AttendanceGrid({
     setLoading(true);
     setMessage(null);
 
-    const cells = Object.entries(shifts).map(([key, shift_type]) => {
-      const [employee_id, attendance_date] = key.split(":");
-      return {
-        employee_id,
-        attendance_date,
-        shift_type,
-        project_id: projectId ?? null,
-      };
-    });
+    const cells: Parameters<typeof saveWeekAttendance>[1] = [];
+
+    for (const emp of employees) {
+      for (const date of dates) {
+        const key = attendanceCellKey(emp.id, date);
+        if (usesShiftAttendance(emp.employee_type)) {
+          cells.push({
+            employee_id: emp.id,
+            attendance_date: date,
+            shift_type: shifts[key] ?? "absent",
+            project_id: projectId ?? null,
+          });
+        } else {
+          const cell = hourlyCells[key] ?? { status: "absent", hours: 0 };
+          cells.push({
+            employee_id: emp.id,
+            attendance_date: date,
+            project_id: projectId ?? null,
+            ...hourlyCellToInput(cell),
+          });
+        }
+      }
+    }
 
     const result = await saveWeekAttendance(weekStart, cells);
 
@@ -129,12 +219,19 @@ export function AttendanceGrid({
     setLoading(false);
   }
 
-  const weekTotal = employees.reduce(
-    (sum, emp) => sum + sumDayUnits(shifts, emp.id, dates),
-    0
-  );
+  const weekTotal = sortedEmployees.reduce((sum, emp) => {
+    if (usesShiftAttendance(emp.employee_type)) {
+      return sum + sumDayUnits(shifts, emp.id, dates);
+    }
+    return sum + sumHourlyDayUnits(hourlyCells, emp.id, dates);
+  }, 0);
 
-  if (employees.length === 0) {
+  const weekOvertimeHours = sortedEmployees.reduce((sum, emp) => {
+    if (usesShiftAttendance(emp.employee_type)) return sum;
+    return sum + sumHourlyOvertime(hourlyCells, emp.id, dates);
+  }, 0);
+
+  if (sortedEmployees.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-[var(--border)] bg-white p-12 text-center">
         <p className="text-lg font-medium text-gray-600">No active employees</p>
@@ -172,7 +269,13 @@ export function AttendanceGrid({
 
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <span className="text-center text-sm sm:text-left">
-            <strong>{weekTotal}</strong> man-days this week
+            <strong>{weekTotal}</strong> man-days
+            {weekOvertimeHours > 0 && (
+              <>
+                {" "}
+                · <strong>{weekOvertimeHours}</strong>h overtime
+              </>
+            )}
           </span>
           <button
             type="button"
@@ -200,14 +303,12 @@ export function AttendanceGrid({
 
       {/* Legend */}
       <div className="flex flex-wrap gap-2">
-        {SHIFT_OPTIONS.map((shift) => (
-          <span
-            key={shift}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${SHIFT_TYPE_COLORS[shift]}`}
-          >
-            {SHIFT_TYPE_SHORT[shift]} = {SHIFT_TYPE_LABELS[shift]}
-          </span>
-        ))}
+        <span className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900">
+          Foreman & engineer: shift marks (A, SL, ½, F, 2×)
+        </span>
+        <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900">
+          Others: hours worked · {STANDARD_SHIFT_HOURS}h = Present · extra = OT
+        </span>
       </div>
 
       {/* Grid — scroll horizontally on mobile */}
@@ -253,8 +354,14 @@ export function AttendanceGrid({
             </tr>
           </thead>
           <tbody>
-            {employees.map((emp) => {
-              const rowTotal = sumDayUnits(shifts, emp.id, dates);
+            {sortedEmployees.map((emp) => {
+              const isShiftRow = usesShiftAttendance(emp.employee_type);
+              const rowTotal = isShiftRow
+                ? sumDayUnits(shifts, emp.id, dates)
+                : sumHourlyDayUnits(hourlyCells, emp.id, dates);
+              const rowOt = isShiftRow
+                ? 0
+                : sumHourlyOvertime(hourlyCells, emp.id, dates);
               return (
                 <tr
                   key={emp.id}
@@ -273,27 +380,82 @@ export function AttendanceGrid({
                   </td>
                   {dates.map((date) => {
                     const key = attendanceCellKey(emp.id, date);
-                    const shift = shifts[key] ?? "absent";
+                    if (isShiftRow) {
+                      const shift = shifts[key] ?? "absent";
+                      return (
+                        <td key={date} className="px-2 py-2 text-center">
+                          <select
+                            value={shift}
+                            onChange={(e) =>
+                              setShift(
+                                emp.id,
+                                date,
+                                e.target.value as ShiftType
+                              )
+                            }
+                            className={`w-full rounded-lg border px-1 py-1.5 text-center text-xs font-semibold outline-none ${SHIFT_TYPE_COLORS[shift]}`}
+                          >
+                            {SHIFT_OPTIONS.map((s) => (
+                              <option key={s} value={s}>
+                                {SHIFT_TYPE_SHORT[s]}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      );
+                    }
+
+                    const cell = hourlyCells[key] ?? {
+                      status: "absent" as const,
+                      hours: 0,
+                    };
                     return (
-                      <td key={date} className="px-2 py-2 text-center">
-                        <select
-                          value={shift}
-                          onChange={(e) =>
-                            setShift(emp.id, date, e.target.value as ShiftType)
-                          }
-                          className={`w-full rounded-lg border px-1 py-1.5 text-center text-xs font-semibold outline-none ${SHIFT_TYPE_COLORS[shift]}`}
-                        >
-                          {SHIFT_OPTIONS.map((s) => (
-                            <option key={s} value={s}>
-                              {SHIFT_TYPE_SHORT[s]}
-                            </option>
-                          ))}
-                        </select>
+                      <td key={date} className="px-1 py-2 text-center">
+                        <div className="flex min-w-[72px] flex-col gap-1">
+                          <select
+                            value={cell.status}
+                            onChange={(e) =>
+                              setHourlyCell(emp.id, date, {
+                                status: e.target
+                                  .value as HourlyAttendanceCell["status"],
+                              })
+                            }
+                            className="w-full rounded border border-gray-200 px-1 py-0.5 text-[10px] font-semibold"
+                          >
+                            <option value="absent">Absent</option>
+                            <option value="work">Hours</option>
+                          </select>
+                          {cell.status === "work" && (
+                            <input
+                              type="number"
+                              min={0}
+                              max={24}
+                              step={0.5}
+                              value={cell.hours || ""}
+                              onChange={(e) =>
+                                setHourlyCell(emp.id, date, {
+                                  status: "work",
+                                  hours: Number.parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              className="w-full rounded-lg border border-emerald-200 bg-emerald-50 px-1 py-1 text-center text-xs font-semibold text-emerald-900"
+                              title="Hours worked"
+                            />
+                          )}
+                          <span className="text-[10px] text-[var(--muted)]">
+                            {formatHourlyAttendanceSummary(cell)}
+                          </span>
+                        </div>
                       </td>
                     );
                   })}
                   <td className="px-4 py-2 text-center font-bold text-[var(--primary)]">
                     {rowTotal}
+                    {rowOt > 0 && (
+                      <p className="text-[10px] font-normal text-amber-700">
+                        +{rowOt}h OT
+                      </p>
+                    )}
                   </td>
                 </tr>
               );
@@ -303,16 +465,12 @@ export function AttendanceGrid({
             <tr className="bg-gray-50 font-semibold">
               <td className="sticky left-0 bg-gray-50 px-4 py-3">Week total</td>
               {dates.map((date) => {
-                const dayTotal = employees.reduce(
-                  (sum, emp) =>
-                    sum +
-                    sumDayUnits(
-                      shifts,
-                      emp.id,
-                      [date]
-                    ),
-                  0
-                );
+                const dayTotal = sortedEmployees.reduce((sum, emp) => {
+                  if (usesShiftAttendance(emp.employee_type)) {
+                    return sum + sumDayUnits(shifts, emp.id, [date]);
+                  }
+                  return sum + sumHourlyDayUnits(hourlyCells, emp.id, [date]);
+                }, 0);
                 return (
                   <td key={date} className="px-2 py-3 text-center text-[var(--primary)]">
                     {dayTotal}
@@ -326,8 +484,10 @@ export function AttendanceGrid({
       </div>
 
       <p className="text-xs text-[var(--muted)]">
-        Man-day units: Absent = 0 · SL = paid leave · Half = 0.5 · Full = 1 ·
-        Double = 2. Monthly staff: mark SL for paid holidays (not deducted).
+        Hourly staff: enter total hours per day. {STANDARD_SHIFT_HOURS} hours =
+        1 present (man-day); hours beyond {STANDARD_SHIFT_HOURS} count as
+        overtime for pay. Foreman & engineer use shift marks (including SL).
+        Founders are not listed (fixed salary only).
       </p>
     </div>
   );

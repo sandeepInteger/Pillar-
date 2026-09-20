@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import type { EmployeeWithRelations, Profile } from "@/types/database";
+import type { Employee, EmployeeWithRelations, Profile } from "@/types/database";
+import { sortEmployeesByHierarchy } from "@/lib/utils/employees";
 
 export async function getProfile(): Promise<Profile | null> {
   const supabase = await createClient();
@@ -53,7 +54,7 @@ export async function getEmployees(filters?: {
     return [];
   }
 
-  return (data ?? []) as EmployeeWithRelations[];
+  return sortEmployeesByHierarchy((data ?? []) as EmployeeWithRelations[]);
 }
 
 export async function getEmployee(
@@ -75,6 +76,63 @@ export async function getEmployee(
 
   if (error) return null;
   return data as EmployeeWithRelations;
+}
+
+/** Active employees for payroll — includes founders (no attendance required). */
+export async function getActiveEmployeesForSalary(filters?: {
+  type?: string;
+  projectId?: string;
+}): Promise<Employee[]> {
+  const supabase = await createClient();
+
+  async function fetchActiveFounders(): Promise<Employee[]> {
+    if (filters?.type && filters.type !== "all" && filters.type !== "founder") {
+      return [];
+    }
+    const { data, error } = await supabase
+      .from("employees")
+      .select("*")
+      .eq("status", "active")
+      .eq("employee_type", "founder")
+      .order("full_name", { ascending: true });
+    if (error) {
+      console.error("fetchActiveFounders:", error.message);
+      return [];
+    }
+    return data ?? [];
+  }
+
+  if (filters?.projectId) {
+    const { getProjectAssignedEmployees } = await import("@/lib/queries/projects");
+    let employees = await getProjectAssignedEmployees(filters.projectId);
+    if (filters?.type && filters.type !== "all") {
+      employees = employees.filter((e) => e.employee_type === filters.type);
+    }
+    const founders = await fetchActiveFounders();
+    const byId = new Map<string, Employee>();
+    for (const employee of [...employees, ...founders]) {
+      byId.set(employee.id, employee);
+    }
+    return sortEmployeesByHierarchy(Array.from(byId.values()));
+  }
+
+  let query = supabase
+    .from("employees")
+    .select("*")
+    .eq("status", "active")
+    .order("full_name", { ascending: true });
+
+  if (filters?.type && filters.type !== "all") {
+    query = query.eq("employee_type", filters.type);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("getActiveEmployeesForSalary:", error.message);
+    return [];
+  }
+
+  return sortEmployeesByHierarchy(data ?? []);
 }
 
 export async function getDashboardStats() {
@@ -108,6 +166,8 @@ export async function getDashboardStats() {
   return {
     total: active.length,
     labour: countByType("labour"),
+    carpenter: countByType("carpenter"),
+    mason: countByType("mason"),
     foreman: countByType("foreman"),
     engineer: countByType("engineer"),
     staff: countByType("staff"),

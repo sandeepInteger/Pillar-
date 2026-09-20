@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ProjectCard } from "@/components/projects/ProjectCard";
+import { getProjectBankInflowTotalsByProject } from "@/lib/queries/projectBankInflows";
 import { getProjects } from "@/lib/queries/projects";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function ProjectsPage() {
-  const projects = await getProjects();
+  const [projects, inflowTotals] = await Promise.all([
+    getProjects(),
+    getProjectBankInflowTotalsByProject(),
+  ]);
   const supabase = await createClient();
 
   const { data: assignmentCounts } = await supabase
@@ -49,6 +53,7 @@ export default async function ProjectsPage() {
               key={project.id}
               project={project}
               teamCount={countByProject[project.id] ?? 0}
+              bankInflowTotal={inflowTotals[project.id]}
             />
           ))}
         </div>

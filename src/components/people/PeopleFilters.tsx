@@ -2,15 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
-
-const types = [
-  { value: "all", label: "Everyone" },
-  { value: "labour", label: "Labour" },
-  { value: "foreman", label: "Foreman" },
-  { value: "engineer", label: "Engineer" },
-  { value: "staff", label: "Staff" },
-  { value: "founder", label: "Founder" },
-];
+import { EMPLOYEE_TYPE_FILTER_OPTIONS } from "@/types/database";
 
 export function PeopleFilters() {
   const router = useRouter();
@@ -36,7 +28,7 @@ export function PeopleFilters() {
         onChange={(e) => update("type", e.target.value)}
         className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
       >
-        {types.map((t) => (
+        {EMPLOYEE_TYPE_FILTER_OPTIONS.map((t) => (
           <option key={t.value} value={t.value}>
             {t.label}
           </option>

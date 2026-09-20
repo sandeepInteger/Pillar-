@@ -1,16 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Project } from "@/types/database";
-
-const types = [
-  { value: "all", label: "Everyone" },
-  { value: "labour", label: "Labour" },
-  { value: "foreman", label: "Foreman" },
-  { value: "engineer", label: "Engineer" },
-  { value: "staff", label: "Staff" },
-  { value: "founder", label: "Founder" },
-];
+import { EMPLOYEE_TYPE_FILTER_OPTIONS, type Project } from "@/types/database";
 
 export function AttendanceFilters({ projects }: { projects: Project[] }) {
   const router = useRouter();
@@ -48,7 +39,7 @@ export function AttendanceFilters({ projects }: { projects: Project[] }) {
         onChange={(e) => updateParam("type", e.target.value)}
         className={selectClass}
       >
-        {types.map((t) => (
+        {EMPLOYEE_TYPE_FILTER_OPTIONS.map((t) => (
           <option key={t.value} value={t.value}>
             {t.label}
           </option>

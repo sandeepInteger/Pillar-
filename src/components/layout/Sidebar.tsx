@@ -47,7 +47,7 @@ const menuSections = [
   {
     label: "Commerce",
     items: [
-      { href: "#", label: "RA Bills", icon: Receipt, active: false },
+      { href: "/ra-bills", label: "RA Bills", icon: Receipt, active: true },
       { href: "#", label: "Invoices", icon: FileText, active: false },
     ],
   },

@@ -41,7 +41,11 @@ export async function GET(
   }
 
   const employee = details[0].employee;
-  const csv = employeeSalaryDetailsToCsv(details, employee);
+  const periodLabel =
+    mode === "single"
+      ? formatMonthLabel(month)
+      : `${formatMonthLabel(rangeFrom)} – ${formatMonthLabel(rangeTo)}`;
+  const csv = employeeSalaryDetailsToCsv(details, employee, { periodLabel });
 
   const slug = employee.full_name
     .toLowerCase()

@@ -4,6 +4,7 @@ import type {
   Project,
   ProjectWithTeam,
 } from "@/types/database";
+import { compareEmployeesByHierarchy } from "@/lib/utils/employees";
 
 export async function getProjects(filters?: {
   status?: string;
@@ -63,9 +64,11 @@ export async function getProject(id: string): Promise<ProjectWithTeam | null> {
   if (error) return null;
 
   const project = data as ProjectWithTeam;
-  project.project_assignments = (project.project_assignments ?? []).filter(
-    (a) => a.is_active
-  );
+  project.project_assignments = (project.project_assignments ?? [])
+    .filter((a) => a.is_active)
+    .sort((a, b) =>
+      compareEmployeesByHierarchy(a.employees, b.employees)
+    );
   return project;
 }
 
@@ -80,12 +83,12 @@ export async function getProjectAssignedEmployees(
     .eq("project_id", projectId)
     .eq("is_active", true);
 
-  return (
+  const employees =
     data
       ?.map((row) => row.employees as unknown as Employee)
-      .filter(Boolean)
-      .sort((a, b) => a.full_name.localeCompare(b.full_name)) ?? []
-  );
+      .filter(Boolean) ?? [];
+
+  return [...employees].sort(compareEmployeesByHierarchy);
 }
 
 export async function getEmployeeActiveProject(

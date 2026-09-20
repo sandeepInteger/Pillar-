@@ -10,6 +10,8 @@ import type {
   ShiftType,
 } from "@/types/database";
 import {
+  EMPLOYEE_TYPE_LABELS,
+  isFounderFixedSalary,
   SALARY_PAYMENT_APP_OPTIONS,
   SALARY_PAYMENT_MODE_LABELS,
   SALARY_PAYMENT_TYPE_LABELS,
@@ -72,6 +74,15 @@ export function formatCurrency(amount: number): string {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+export function formatCurrencyUpToTwoDecimals(amount: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 
@@ -164,24 +175,47 @@ export function sumPaidOut(payments: SalaryPayment[]): number {
   return payments.reduce((sum, p) => sum + paymentSignedAmount(p), 0);
 }
 
+export interface AttendanceSalaryRecord {
+  shift_type: ShiftType;
+  day_units: number;
+  hours_worked?: number | null;
+  overtime_hours?: number | null;
+}
+
 export interface SalaryAttendanceBreakdown {
   manDays: number;
   absentDays: number;
   slDays: number;
+  regularHours: number;
+  overtimeHours: number;
 }
 
 export function aggregateAttendanceForSalary(
-  records: Array<{ shift_type: ShiftType; day_units: number }>
+  records: AttendanceSalaryRecord[]
 ): SalaryAttendanceBreakdown {
   let manDays = 0;
   let absentDays = 0;
   let slDays = 0;
+  let regularHours = 0;
+  let overtimeHours = 0;
 
   for (const record of records) {
     if (record.shift_type === "absent") {
       absentDays++;
     } else if (record.shift_type === "sl") {
       slDays++;
+    } else if (record.shift_type === "hours") {
+      const hours = Number(record.hours_worked ?? 0);
+      if (hours <= 0) {
+        absentDays++;
+        continue;
+      }
+      manDays += Number(record.day_units);
+      regularHours += Math.min(hours, 8);
+      overtimeHours +=
+        record.overtime_hours != null
+          ? Number(record.overtime_hours)
+          : Math.max(0, hours - 8);
     } else {
       manDays += Number(record.day_units);
     }
@@ -191,38 +225,63 @@ export function aggregateAttendanceForSalary(
     manDays: Math.round(manDays * 100) / 100,
     absentDays,
     slDays,
+    regularHours: Math.round(regularHours * 100) / 100,
+    overtimeHours: Math.round(overtimeHours * 100) / 100,
   };
 }
 
 export function getEmployeeSalaryType(
   employee: Pick<EmployeeWithRelations, "salary_type">
 ): SalaryType {
-  return employee.salary_type === "monthly" ? "monthly" : "daily";
+  if (employee.salary_type === "monthly") return "monthly";
+  if (employee.salary_type === "hourly") return "hourly";
+  return "daily";
 }
 
 export function formatRateDisplay(
   employee: Pick<
     EmployeeWithRelations,
-    "salary_type" | "daily_rate" | "monthly_salary" | "monthly_sl_days"
+    | "employee_type"
+    | "salary_type"
+    | "daily_rate"
+    | "hourly_rate"
+    | "monthly_salary"
+    | "monthly_sl_days"
   >
 ): string | null {
   const salaryType = getEmployeeSalaryType(employee);
   if (salaryType === "monthly") {
     if (employee.monthly_salary == null) return null;
+    if (isFounderFixedSalary(employee.employee_type)) {
+      return `${formatCurrency(Number(employee.monthly_salary))}/mo fixed`;
+    }
     const sl =
       Number(employee.monthly_sl_days) > 0
         ? ` · ${employee.monthly_sl_days} SL/mo`
         : "";
     return `${formatCurrency(Number(employee.monthly_salary))}/mo${sl}`;
   }
+  if (salaryType === "hourly") {
+    if (employee.hourly_rate == null) return null;
+    return `${formatCurrencyUpToTwoDecimals(Number(employee.hourly_rate))}/hr`;
+  }
   if (employee.daily_rate == null) return null;
-  return `${formatCurrency(Number(employee.daily_rate))}/day`;
+  const sl =
+    Number(employee.monthly_sl_days) > 0
+      ? ` · ${employee.monthly_sl_days} SL/mo`
+      : "";
+  return `${formatCurrencyUpToTwoDecimals(Number(employee.daily_rate))}/day${sl}`;
 }
 
 export function computeGrossSalary(
   employee: Pick<
     EmployeeWithRelations,
-    "salary_type" | "daily_rate" | "monthly_salary" | "monthly_sl_days"
+    | "employee_type"
+    | "salary_type"
+    | "daily_rate"
+    | "hourly_rate"
+    | "monthly_salary"
+    | "monthly_sl_days"
   >,
   attendance: SalaryAttendanceBreakdown
 ): {
@@ -236,6 +295,32 @@ export function computeGrossSalary(
   const salaryType = getEmployeeSalaryType(employee);
   const slAllowance = Number(employee.monthly_sl_days ?? 0);
 
+  if (salaryType === "hourly") {
+    const hourlyRate =
+      employee.hourly_rate != null ? Number(employee.hourly_rate) : null;
+    if (hourlyRate == null) {
+      return {
+        grossAmount: null,
+        salaryDeduction: 0,
+        slAllowance: 0,
+        dailyRate: null,
+        monthlySalary: null,
+        salaryType,
+      };
+    }
+    const grossAmount = Math.round(
+      (attendance.regularHours + attendance.overtimeHours) * hourlyRate * 100
+    ) / 100;
+    return {
+      grossAmount,
+      salaryDeduction: 0,
+      slAllowance: 0,
+      dailyRate: null,
+      monthlySalary: null,
+      salaryType,
+    };
+  }
+
   if (salaryType === "monthly") {
     const monthlySalary =
       employee.monthly_salary != null ? Number(employee.monthly_salary) : null;
@@ -246,6 +331,17 @@ export function computeGrossSalary(
         slAllowance,
         dailyRate: null,
         monthlySalary: null,
+        salaryType,
+      };
+    }
+
+    if (isFounderFixedSalary(employee.employee_type)) {
+      return {
+        grossAmount: monthlySalary,
+        salaryDeduction: 0,
+        slAllowance: 0,
+        dailyRate: null,
+        monthlySalary,
         salaryType,
       };
     }
@@ -271,15 +367,31 @@ export function computeGrossSalary(
 
   const dailyRate =
     employee.daily_rate != null ? Number(employee.daily_rate) : null;
-  const grossAmount =
-    dailyRate != null
-      ? Math.round(attendance.manDays * dailyRate * 100) / 100
-      : null;
+  if (dailyRate == null) {
+    return {
+      grossAmount: null,
+      salaryDeduction: 0,
+      slAllowance,
+      dailyRate: null,
+      monthlySalary: null,
+      salaryType,
+    };
+  }
+
+  const paidSlDays = Math.min(attendance.slDays, slAllowance);
+  const excessSl = Math.max(0, attendance.slDays - slAllowance);
+  const grossAmount = Math.round(
+    (attendance.manDays + paidSlDays) * dailyRate * 100
+  ) / 100;
+  const salaryDeduction =
+    excessSl > 0
+      ? Math.round(excessSl * dailyRate * 100) / 100
+      : 0;
 
   return {
     grossAmount,
-    salaryDeduction: 0,
-    slAllowance: 0,
+    salaryDeduction,
+    slAllowance,
     dailyRate,
     monthlySalary: null,
     salaryType,
@@ -301,12 +413,11 @@ export function groupAttendanceByMonth(
     attendance_date: string;
     shift_type: ShiftType;
     day_units: number;
+    hours_worked?: number | null;
+    overtime_hours?: number | null;
   }>
-): Map<string, Array<{ shift_type: ShiftType; day_units: number }>> {
-  const map = new Map<
-    string,
-    Array<{ shift_type: ShiftType; day_units: number }>
-  >();
+): Map<string, AttendanceSalaryRecord[]> {
+  const map = new Map<string, AttendanceSalaryRecord[]>();
 
   for (const record of records) {
     const month = monthFromDate(record.attendance_date);
@@ -314,6 +425,8 @@ export function groupAttendanceByMonth(
     list.push({
       shift_type: record.shift_type,
       day_units: Number(record.day_units),
+      hours_worked: record.hours_worked,
+      overtime_hours: record.overtime_hours,
     });
     map.set(month, list);
   }
@@ -337,13 +450,16 @@ function getEmployeeSalaryStartMonth(
 export function computeOpeningBalance(
   employee: Pick<
     EmployeeWithRelations,
-    "salary_type" | "daily_rate" | "monthly_salary" | "monthly_sl_days" | "start_date"
+    | "employee_type"
+    | "salary_type"
+    | "daily_rate"
+    | "hourly_rate"
+    | "monthly_salary"
+    | "monthly_sl_days"
+    | "start_date"
   >,
   month: string,
-  priorAttendanceByMonth: Map<
-    string,
-    Array<{ shift_type: ShiftType; day_units: number }>
-  >,
+  priorAttendanceByMonth: Map<string, AttendanceSalaryRecord[]>,
   paymentsBeforeMonth: SalaryPayment[]
 ): number {
   const priorMonthEnd = addMonths(month, -1);
@@ -373,6 +489,9 @@ function buildEarnedLabel(
   gross: ReturnType<typeof computeGrossSalary>
 ): string {
   if (gross.salaryType === "monthly" && gross.monthlySalary != null) {
+    if (isFounderFixedSalary(employee.employee_type)) {
+      return `Fixed salary ${formatCurrency(gross.monthlySalary)} (no attendance)`;
+    }
     const parts = [`Monthly salary ${formatCurrency(gross.monthlySalary)}`];
     if (attendance.slDays > 0) {
       parts.push(`${attendance.slDays} SL day(s) paid`);
@@ -386,7 +505,13 @@ function buildEarnedLabel(
   }
 
   if (gross.dailyRate != null) {
-    return `Daily wage (${attendance.manDays} man-days × ${formatCurrency(gross.dailyRate)})`;
+    const paidSl = Math.min(attendance.slDays, gross.slAllowance);
+    const parts = [
+      `Daily wage (${attendance.manDays} man-days`,
+      paidSl > 0 ? `+ ${paidSl} SL` : "",
+      `× ${formatCurrency(gross.dailyRate)})`,
+    ].filter(Boolean);
+    return parts.join(" ");
   }
 
   return "Monthly wage";
@@ -552,78 +677,202 @@ function csvRow(cells: (string | number)[]): string {
   return cells.map(csvCell).join(",");
 }
 
+function csvPadRow(first: string, width = 10): string {
+  return csvRow([first, ...Array(Math.max(0, width - 1)).fill("")]);
+}
+
+function csvKeyValue(label: string, value: string | number): string {
+  return csvRow(["", label, value]);
+}
+
+function formatCsvInr(amount: number | null | undefined): string {
+  if (amount == null || amount === 0) return "";
+  return new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function formatCsvDecimal(value: number): string {
+  if (value === 0) return "";
+  return new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatLedgerExportDate(date: string): string {
+  return new Date(`${date}T12:00:00`).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function payStructureLabel(employee: EmployeeWithRelations): string {
+  const salaryType = getEmployeeSalaryType(employee);
+  if (salaryType === "monthly") return "Monthly fixed salary";
+  if (salaryType === "hourly") return "Hourly wage";
+  return "Daily wage";
+}
+
+function primaryPhone(employee: EmployeeWithRelations): string {
+  const primary =
+    employee.employee_phones.find((p) => p.is_primary) ??
+    employee.employee_phones[0];
+  return primary?.phone_number ?? "";
+}
+
+export interface EmployeeSalaryCsvMeta {
+  periodLabel: string;
+  generatedAt?: string;
+}
+
 export function employeeSalaryDetailsToCsv(
   details: EmployeeSalaryDetail[],
-  employee: EmployeeWithRelations
+  employee: EmployeeWithRelations,
+  meta?: EmployeeSalaryCsvMeta
 ): string {
   const lines: string[] = [];
+  const W = 10;
+  const generatedAt =
+    meta?.generatedAt ??
+    new Date().toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  const periodLabel =
+    meta?.periodLabel ??
+    (details.length === 1
+      ? formatMonthLabel(details[0].month)
+      : details.length > 1
+        ? `${formatMonthLabel(details[0].month)} – ${formatMonthLabel(details[details.length - 1].month)}`
+        : "");
 
-  lines.push("EMPLOYEE SALARY REPORT");
-  lines.push(csvRow(["Employee Name", employee.full_name]));
-  lines.push(csvRow(["Employee Code", employee.employee_code]));
-  lines.push(csvRow(["Employee Type", employee.employee_type]));
+  const rateDisplay = formatRateDisplay(employee) ?? "—";
+  const payoutMethod = getPrimaryPayment(employee) ?? "Not on file";
+
+  let totalGross = 0;
+  let totalPaid = 0;
+  let totalDue = 0;
+  let totalManDays = 0;
+
+  for (const d of details) {
+    totalManDays += d.manDays;
+    if (d.grossAmount != null) totalGross += d.grossAmount;
+    totalPaid += d.totalPaidOut;
+    if (d.balanceDue != null) totalDue += d.balanceDue;
+  }
+  totalGross = Math.round(totalGross * 100) / 100;
+  totalPaid = Math.round(totalPaid * 100) / 100;
+  totalDue = Math.round(totalDue * 100) / 100;
+
+  lines.push(csvPadRow("PILLAR", W));
+  lines.push(csvPadRow("Employee Salary Statement", W));
+  lines.push(csvRow(Array(W).fill("")));
+  lines.push(csvKeyValue("Report period", periodLabel));
+  lines.push(csvKeyValue("Generated on", generatedAt));
+  lines.push(csvKeyValue("Currency", "INR (₹)"));
+  lines.push(csvRow(Array(W).fill("")));
+
+  lines.push(csvPadRow("EMPLOYEE DETAILS", W));
+  lines.push(csvRow(["", "Field", "Value"]));
+  lines.push(csvKeyValue("Full name", employee.full_name));
+  lines.push(csvKeyValue("Employee code", employee.employee_code));
   lines.push(
-    csvRow([
-      "Pay Type",
-      employee.salary_type === "monthly" ? "Monthly fixed" : "Daily wage",
-    ])
+    csvKeyValue("Role", EMPLOYEE_TYPE_LABELS[employee.employee_type])
   );
-  lines.push("");
+  lines.push(csvKeyValue("Pay structure", payStructureLabel(employee)));
+  lines.push(csvKeyValue("Rate", rateDisplay));
+  lines.push(
+    csvKeyValue(
+      "Status",
+      employee.status === "active" ? "Active" : "Inactive"
+    )
+  );
+  if (primaryPhone(employee)) {
+    lines.push(csvKeyValue("Phone", primaryPhone(employee)));
+  }
+  lines.push(csvKeyValue("Primary payout", payoutMethod));
+  lines.push(csvRow(Array(W).fill("")));
 
-  lines.push("MONTHLY SUMMARY");
+  lines.push(csvPadRow("MONTHLY SUMMARY", W));
   lines.push(
     csvRow([
+      "",
       "Month",
       "Man-days",
-      "SL Days",
-      "Absent Days",
-      "Pay Rate",
-      "Deduction (INR)",
-      "Opening Balance (INR)",
-      "This Month Gross (INR)",
-      "Paid Out (INR)",
-      "Balance Due (INR)",
+      "SL days",
+      "Absent",
+      "Pay rate",
+      "Deduction (₹)",
+      "Opening bal. (₹)",
+      "Gross earned (₹)",
+      "Paid out (₹)",
+      "Balance due (₹)",
     ])
   );
 
   for (const detail of details) {
     const rate =
-      detail.salaryType === "monthly"
+      formatRateDisplay(detail.employee) ??
+      (detail.salaryType === "monthly"
         ? detail.monthlySalary != null
-          ? `${detail.monthlySalary}/mo · ${detail.slAllowance} SL/mo`
+          ? `${formatCsvInr(detail.monthlySalary)}/mo`
           : ""
         : detail.dailyRate != null
-          ? `${detail.dailyRate}/day`
-          : "";
+          ? `${formatCsvInr(detail.dailyRate)}/day`
+          : "");
 
     lines.push(
       csvRow([
+        "",
         formatMonthLabel(detail.month),
-        detail.manDays,
-        detail.slDays,
-        detail.absentDays,
+        formatCsvDecimal(detail.manDays),
+        formatCsvDecimal(detail.slDays),
+        formatCsvDecimal(detail.absentDays),
         rate,
-        detail.salaryDeduction > 0 ? detail.salaryDeduction : "",
-        detail.openingBalance !== 0 ? detail.openingBalance : "",
-        detail.grossAmount ?? "",
-        detail.totalPaidOut,
-        detail.balanceDue ?? "",
+        formatCsvInr(detail.salaryDeduction),
+        formatCsvInr(detail.openingBalance),
+        detail.grossAmount != null ? formatCsvInr(detail.grossAmount) : "",
+        formatCsvInr(detail.totalPaidOut),
+        detail.balanceDue != null ? formatCsvInr(detail.balanceDue) : "",
       ])
     );
   }
 
-  lines.push("");
-  lines.push("LEDGER ENTRIES");
+  if (details.length > 1) {
+    lines.push(
+      csvRow([
+        "",
+        "TOTAL (period)",
+        formatCsvDecimal(totalManDays),
+        "",
+        "",
+        "",
+        "",
+        "",
+        formatCsvInr(totalGross),
+        formatCsvInr(totalPaid),
+        formatCsvInr(totalDue),
+      ])
+    );
+  }
+
+  lines.push(csvRow(Array(W).fill("")));
+  lines.push(csvPadRow("PAYMENT & EARNINGS LEDGER", W));
   lines.push(
     csvRow([
+      "",
       "Month",
       "Date",
-      "Purpose",
+      "Description",
+      "Type",
       "Mode",
-      "App / Reference",
-      "Paid Out (INR)",
-      "Earned (INR)",
-      "Running Balance (INR)",
+      "Reference",
+      "Paid out (₹)",
+      "Earned (₹)",
+      "Running balance (₹)",
     ])
   );
 
@@ -633,35 +882,57 @@ export function employeeSalaryDetailsToCsv(
 
     for (const entry of detail.ledger) {
       runningBalance += entry.earned - entry.paidOut;
+      runningBalance = Math.round(runningBalance * 100) / 100;
+
+      const typeLabel =
+        entry.paymentType === "earned" || entry.paymentType === "opening"
+          ? entry.label
+          : SALARY_PAYMENT_TYPE_LABELS[entry.paymentType] ?? entry.label;
+
       lines.push(
         csvRow([
+          "",
           monthLabel,
-          entry.date,
+          formatLedgerExportDate(entry.date),
           entry.label,
+          typeLabel,
           entry.paymentMode
             ? SALARY_PAYMENT_MODE_LABELS[entry.paymentMode]
             : "",
           entry.isCalculated
-            ? ""
+            ? "—"
             : formatPaymentDetails({
                 payment_mode: entry.paymentMode,
                 payment_app: entry.paymentApp,
                 payment_reference: entry.paymentReference,
-              }).replace(/—/g, ""),
-          entry.paidOut !== 0 ? entry.paidOut : "",
-          entry.earned !== 0 ? entry.earned : "",
-          runningBalance,
+              }),
+          formatCsvInr(entry.paidOut),
+          formatCsvInr(entry.earned),
+          formatCsvInr(runningBalance),
         ])
       );
     }
   }
 
-  return lines.join("\n");
+  lines.push(csvRow(Array(W).fill("")));
+  lines.push(csvPadRow("STATEMENT TOTALS", W));
+  lines.push(csvKeyValue("Total gross earned (period)", formatCsvInr(totalGross)));
+  lines.push(csvKeyValue("Total paid out (period)", formatCsvInr(totalPaid)));
+  lines.push(csvKeyValue("Total balance due (period)", formatCsvInr(totalDue)));
+  lines.push(csvRow(Array(W).fill("")));
+  lines.push(
+    csvPadRow(
+      "This is a system-generated salary statement from Pillar. Amounts are in INR.",
+      W
+    )
+  );
+
+  return `\uFEFF${lines.join("\r\n")}`;
 }
 
 export function enrichSalaryRow(
   employee: EmployeeWithRelations,
-  records: Array<{ shift_type: ShiftType; day_units: number }>,
+  records: AttendanceSalaryRecord[],
   payments: SalaryPayment[],
   openingBalance = 0
 ): Omit<SalaryRow, "employee"> {
@@ -684,6 +955,8 @@ export function enrichSalaryRow(
     manDays: attendance.manDays,
     absentDays: attendance.absentDays,
     slDays: attendance.slDays,
+    regularHours: attendance.regularHours,
+    overtimeHours: attendance.overtimeHours,
     dailyRate: gross.dailyRate,
     monthlySalary: gross.monthlySalary,
     salaryType: gross.salaryType,

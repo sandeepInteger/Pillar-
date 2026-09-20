@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Employee, Project, ProjectAssignmentWithEmployee } from "@/types/database";
 import {
@@ -13,6 +13,10 @@ import {
   removeEmployeeFromProject,
   transferEmployeeToProject,
 } from "@/lib/actions/projects";
+import {
+  compareEmployeesByHierarchy,
+  sortEmployeesByHierarchy,
+} from "@/lib/utils/employees";
 import { ArrowRightLeft, UserMinus, UserPlus } from "lucide-react";
 
 interface ProjectTeamPanelProps {
@@ -75,6 +79,27 @@ export function ProjectTeamPanel({
 
   const transferOptions = otherProjects.filter((p) => p.id !== projectId);
 
+  const sortedAvailable = useMemo(
+    () => sortEmployeesByHierarchy(availableEmployees),
+    [availableEmployees]
+  );
+
+  const sortedAssignments = useMemo(
+    () =>
+      [...assignments].sort((a, b) =>
+        compareEmployeesByHierarchy(a.employees, b.employees)
+      ),
+    [assignments]
+  );
+
+  const siteWorkersOnProject = useMemo(
+    () =>
+      sortedAssignments.filter(
+        (a) => !MULTI_PROJECT_TYPES.includes(a.employees.employee_type)
+      ),
+    [sortedAssignments]
+  );
+
   return (
     <div className="space-y-6">
       {message && (
@@ -97,7 +122,7 @@ export function ProjectTeamPanel({
             className="min-w-[200px] flex-1 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"
           >
             <option value="">Select employee...</option>
-            {availableEmployees.map((emp) => (
+            {sortedAvailable.map((emp) => (
               <option key={emp.id} value={emp.id}>
                 {emp.full_name} ({EMPLOYEE_TYPE_LABELS[emp.employee_type]})
               </option>
@@ -132,11 +157,7 @@ export function ProjectTeamPanel({
               className="rounded-lg border border-amber-200 px-3 py-2 text-sm"
             >
               <option value="">Employee on this project...</option>
-              {assignments
-                .filter(
-                  (a) => !MULTI_PROJECT_TYPES.includes(a.employees.employee_type)
-                )
-                .map((a) => (
+              {siteWorkersOnProject.map((a) => (
                   <option key={a.employee_id} value={a.employee_id}>
                     {a.employees.full_name}
                   </option>
@@ -170,13 +191,13 @@ export function ProjectTeamPanel({
       {/* Team list */}
       <div className="rounded-xl border border-[var(--border)] bg-white p-5">
         <h3 className="mb-4 font-semibold">
-          Team on site ({assignments.length})
+          Team on site ({sortedAssignments.length})
         </h3>
-        {assignments.length === 0 ? (
+        {sortedAssignments.length === 0 ? (
           <p className="text-sm text-[var(--muted)]">No one assigned yet.</p>
         ) : (
           <ul className="space-y-2">
-            {assignments.map((a) => (
+            {sortedAssignments.map((a) => (
               <li
                 key={a.id}
                 className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3"

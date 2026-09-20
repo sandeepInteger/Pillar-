@@ -25,6 +25,8 @@ export async function saveWeekAttendance(
     employee_id: cell.employee_id,
     attendance_date: cell.attendance_date,
     shift_type: cell.shift_type,
+    hours_worked:
+      cell.shift_type === "hours" ? (cell.hours_worked ?? 0) : null,
     project_id: cell.project_id ?? null,
     created_by: user.id,
   }));

@@ -4,6 +4,7 @@ import type { SalarySummary } from "@/types/database";
 import {
   EMPLOYEE_TYPE_COLORS,
   EMPLOYEE_TYPE_LABELS,
+  isFounderFixedSalary,
 } from "@/types/database";
 import {
   addMonths,
@@ -166,7 +167,16 @@ export function SalaryTable({
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right font-medium tabular-nums">
-                      {row.manDays}
+                      {isFounderFixedSalary(row.employee.employee_type) ? (
+                        <span className="text-[var(--muted)]">Fixed</span>
+                      ) : (
+                        row.manDays
+                      )}
+                      {row.overtimeHours > 0 && (
+                        <p className="text-[10px] font-normal text-amber-700">
+                          +{row.overtimeHours}h OT
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-xs">
                       {row.rateDisplay ? (
@@ -179,7 +189,10 @@ export function SalaryTable({
                           Set pay
                         </Link>
                       )}
-                      {row.salaryType === "monthly" && row.slDays > 0 && (
+                      {(row.salaryType === "monthly" ||
+                        row.salaryType === "daily") &&
+                        row.slDays > 0 &&
+                        !isFounderFixedSalary(row.employee.employee_type) && (
                         <p className="text-[var(--muted)]">
                           {row.slDays} SL used
                         </p>
@@ -247,10 +260,9 @@ export function SalaryTable({
       </div>
 
       <p className="text-xs text-[var(--muted)]">
-        Daily staff: gross = man-days × daily rate. Monthly staff (engineer,
-        foreman, staff): fixed salary minus unpaid absences; SL days within
-        allowance are paid. Unpaid salary carries forward as opening balance in
-        the next month. Click a name to open the salary ledger.
+        Founder: fixed monthly (no attendance). Foreman & engineer: daily wage ×
+        (man-days + paid SL). Others: hourly × hours worked (no SL). Click a
+        name for the ledger.
       </p>
     </div>
   );

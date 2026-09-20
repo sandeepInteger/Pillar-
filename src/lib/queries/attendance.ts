@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import type { AttendanceRecord, Employee, ShiftType } from "@/types/database";
+import { tracksAttendance } from "@/types/database";
 import { getWeekDates } from "@/lib/utils/attendance";
+import { sortEmployeesByHierarchy } from "@/lib/utils/employees";
 
 export async function getActiveEmployeesForAttendance(filters?: {
   type?: string;
@@ -12,7 +14,9 @@ export async function getActiveEmployeesForAttendance(filters?: {
     if (filters?.type && filters.type !== "all") {
       employees = employees.filter((e) => e.employee_type === filters.type);
     }
-    return employees;
+    return sortEmployeesByHierarchy(
+      employees.filter((e) => tracksAttendance(e.employee_type))
+    );
   }
 
   const supabase = await createClient();
@@ -33,7 +37,9 @@ export async function getActiveEmployeesForAttendance(filters?: {
     return [];
   }
 
-  return data ?? [];
+  return sortEmployeesByHierarchy(
+    (data ?? []).filter((e) => tracksAttendance(e.employee_type))
+  );
 }
 
 export async function getRangeAttendance(
@@ -99,6 +105,7 @@ export async function getAttendanceSummary(weekStart: string) {
     full: 0,
     double: 0,
     sl: 0,
+    hours: 0,
   };
 
   let totalDayUnits = 0;

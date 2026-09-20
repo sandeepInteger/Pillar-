@@ -2,11 +2,13 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   AnalyticsData,
   EmployeeType,
+  MonthRaBillCashReceipt,
+  MonthRaBillStats,
   MonthSalaryTotals,
   MonthSalaryTypeStats,
   MonthWorkStats,
 } from "@/types/database";
-import { ANALYTICS_SALARY_TYPES } from "@/types/database";
+import { ANALYTICS_SALARY_TYPES, SITE_LABOUR_TYPES } from "@/types/database";
 import {
   addMonths,
   aggregateAttendanceForSalary,
@@ -23,8 +25,9 @@ import type { EmployeeWithRelations, ShiftType } from "@/types/database";
 interface EmployeeRow {
   id: string;
   employee_type: EmployeeType;
-  salary_type: string | null;
+  salary_type: EmployeeWithRelations["salary_type"] | null;
   daily_rate: number | null;
+  hourly_rate: number | null;
   monthly_salary: number | null;
   monthly_sl_days: number | null;
 }
@@ -34,6 +37,8 @@ interface AttendanceRow {
   attendance_date: string;
   shift_type: string;
   day_units: number;
+  hours_worked: number | null;
+  overtime_hours: number | null;
 }
 
 interface PaymentRow {
@@ -60,6 +65,37 @@ function emptyWorkMonth(month: string): MonthWorkStats {
     totalSiteManDays: 0,
     allManDays: 0,
     allWorkers: 0,
+  };
+}
+
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function emptyRaBillMonth(month: string): MonthRaBillStats {
+  return {
+    month,
+    monthLabel: formatMonthLabel(month),
+    monthShort: formatMonthShort(month),
+    billCount: 0,
+    grossAmount: 0,
+    igstAmount: 0,
+    totalBillAmount: 0,
+    retentionAmount: 0,
+    tdsAmount: 0,
+    netAmount: 0,
+    receivedFromBills: 0,
+    pendingNet: 0,
+  };
+}
+
+function emptyRaBillCashMonth(month: string): MonthRaBillCashReceipt {
+  return {
+    month,
+    monthLabel: formatMonthLabel(month),
+    monthShort: formatMonthShort(month),
+    amount: 0,
+    billCount: 0,
   };
 }
 
@@ -91,13 +127,18 @@ export async function getAnalyticsData(
 
   const supabase = await createClient();
 
-  const [employeesRes, attendanceRes, paymentsRes] = await Promise.all([
+  const [employeesRes, attendanceRes, paymentsRes, raBillsRes, raBillBankRes] =
+    await Promise.all([
     supabase
       .from("employees")
-      .select("id, employee_type, salary_type, daily_rate, monthly_salary, monthly_sl_days"),
+      .select(
+        "id, employee_type, salary_type, daily_rate, hourly_rate, monthly_salary, monthly_sl_days"
+      ),
     supabase
       .from("attendance_records")
-      .select("employee_id, attendance_date, shift_type, day_units")
+      .select(
+        "employee_id, attendance_date, shift_type, day_units, hours_worked, overtime_hours"
+      )
       .gte("attendance_date", start)
       .lte("attendance_date", end),
     supabase
@@ -105,13 +146,96 @@ export async function getAnalyticsData(
       .select("employee_id, payment_date, amount, payment_type")
       .gte("payment_date", start)
       .lte("payment_date", end),
+    supabase
+      .from("ra_bills")
+      .select(
+        "confirmed_date, gross_amount, igst_amount, retention_amount, tds_amount, net_amount, bank_received_date, bank_received_amount"
+      )
+      .gte("confirmed_date", start)
+      .lte("confirmed_date", end),
+    supabase
+      .from("ra_bills")
+      .select("bank_received_date, bank_received_amount")
+      .not("bank_received_date", "is", null)
+      .gte("bank_received_date", start)
+      .lte("bank_received_date", end),
   ]);
 
   const employees = (employeesRes.data ?? []) as EmployeeRow[];
   const attendance = (attendanceRes.data ?? []) as AttendanceRow[];
   const payments = (paymentsRes.data ?? []) as PaymentRow[];
 
+  interface RaBillAnalyticsRow {
+    confirmed_date: string;
+    gross_amount: number;
+    igst_amount: number;
+    retention_amount: number;
+    tds_amount: number;
+    net_amount: number;
+    bank_received_date: string | null;
+    bank_received_amount: number | null;
+  }
+
+  const raBills = (raBillsRes.data ?? []) as RaBillAnalyticsRow[];
+  const raBillBankRows = (raBillBankRes.data ?? []) as Pick<
+    RaBillAnalyticsRow,
+    "bank_received_date" | "bank_received_amount"
+  >[];
+
   const employeeMap = new Map(employees.map((e) => [e.id, e]));
+
+  const raBillsByMonthMap = new Map<string, MonthRaBillStats>(
+    months.map((m) => [m, emptyRaBillMonth(m)])
+  );
+  const raBillCashByMonthMap = new Map<string, MonthRaBillCashReceipt>(
+    months.map((m) => [m, emptyRaBillCashMonth(m)])
+  );
+
+  for (const bill of raBills) {
+    const month = monthFromDate(bill.confirmed_date);
+    const stats = raBillsByMonthMap.get(month);
+    if (!stats) continue;
+
+    const gross = Number(bill.gross_amount);
+    const igst = Number(bill.igst_amount ?? 0);
+    const retention = Number(bill.retention_amount);
+    const tds = Number(bill.tds_amount);
+    const net = Number(bill.net_amount);
+
+    stats.billCount += 1;
+    stats.grossAmount = roundMoney(stats.grossAmount + gross);
+    stats.igstAmount = roundMoney(stats.igstAmount + igst);
+    stats.totalBillAmount = roundMoney(stats.totalBillAmount + gross + igst);
+    stats.retentionAmount = roundMoney(stats.retentionAmount + retention);
+    stats.tdsAmount = roundMoney(stats.tdsAmount + tds);
+    stats.netAmount = roundMoney(stats.netAmount + net);
+
+    if (bill.bank_received_date) {
+      const received =
+        bill.bank_received_amount != null
+          ? Number(bill.bank_received_amount)
+          : net;
+      stats.receivedFromBills = roundMoney(stats.receivedFromBills + received);
+    } else {
+      stats.pendingNet = roundMoney(stats.pendingNet + net);
+    }
+  }
+
+  for (const row of raBillBankRows) {
+    if (!row.bank_received_date) continue;
+    const month = monthFromDate(row.bank_received_date);
+    const stats = raBillCashByMonthMap.get(month);
+    if (!stats) continue;
+    const amount =
+      row.bank_received_amount != null
+        ? Number(row.bank_received_amount)
+        : 0;
+    stats.billCount += 1;
+    stats.amount = roundMoney(stats.amount + amount);
+  }
+
+  const raBillsByMonth = months.map((m) => raBillsByMonthMap.get(m)!);
+  const raBillCashByMonth = months.map((m) => raBillCashByMonthMap.get(m)!);
 
   const workByMonthMap = new Map<string, MonthWorkStats>(
     months.map((m) => [m, emptyWorkMonth(m)])
@@ -137,7 +261,7 @@ export async function getAnalyticsData(
     if (!allWorkersByMonth.has(month)) allWorkersByMonth.set(month, new Set());
     allWorkersByMonth.get(month)!.add(record.employee_id);
 
-    if (employee.employee_type === "labour") {
+    if (SITE_LABOUR_TYPES.includes(employee.employee_type)) {
       stats.labourManDays = Math.round((stats.labourManDays + units) * 100) / 100;
       if (!labourWorkersByMonth.has(month))
         labourWorkersByMonth.set(month, new Set());
@@ -174,7 +298,12 @@ export async function getAnalyticsData(
   const workersByMonthType = new Map<string, Set<string>>();
   const attendanceByEmployeeMonth = new Map<
     string,
-    Array<{ shift_type: ShiftType; day_units: number }>
+    Array<{
+      shift_type: ShiftType;
+      day_units: number;
+      hours_worked?: number | null;
+      overtime_hours?: number | null;
+    }>
   >();
 
   for (const record of attendance) {
@@ -184,6 +313,8 @@ export async function getAnalyticsData(
     list.push({
       shift_type: record.shift_type as ShiftType,
       day_units: Number(record.day_units),
+      hours_worked: record.hours_worked,
+      overtime_hours: record.overtime_hours,
     });
     attendanceByEmployeeMonth.set(empKey, list);
   }
@@ -201,9 +332,10 @@ export async function getAnalyticsData(
 
       const gross = computeGrossSalary(
         {
-          salary_type:
-            employee.salary_type === "monthly" ? "monthly" : "daily",
+          employee_type: employee.employee_type,
+          salary_type: employee.salary_type ?? "daily",
           daily_rate: employee.daily_rate,
+          hourly_rate: employee.hourly_rate ?? null,
           monthly_salary: employee.monthly_salary,
           monthly_sl_days: Number(employee.monthly_sl_days ?? 0),
         },
@@ -289,9 +421,12 @@ export async function getAnalyticsData(
     workByMonth: months.map((m) => workByMonthMap.get(m)!),
     salaryByType,
     salaryTotalsByMonth,
+    raBillsByMonth,
+    raBillCashByMonth,
     selectedMonthWork: workByMonthMap.get(focusMonth) ?? null,
     selectedMonthSalaryTotals:
       salaryTotalsByMonth.find((t) => t.month === focusMonth) ?? null,
+    selectedMonthRaBills: raBillsByMonthMap.get(focusMonth) ?? null,
   };
 }
 

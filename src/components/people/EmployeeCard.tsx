@@ -1,22 +1,37 @@
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Phone, CreditCard, Pencil } from "lucide-react";
+import { MapPin, Phone, CreditCard, Pencil, Wallet } from "lucide-react";
 import type { EmployeeWithRelations } from "@/types/database";
 import {
   EMPLOYEE_TYPE_LABELS,
   EMPLOYEE_STATUS_LABELS,
   EMPLOYEE_TYPE_COLORS,
+  isFounderFixedSalary,
 } from "@/types/database";
 import {
   formatDate,
   getPrimaryPhone,
   getPrimaryPayment,
 } from "@/lib/utils/employees";
+import {
+  formatRateDisplay,
+  getEmployeeSalaryType,
+} from "@/lib/utils/salary";
+
+function payKindLabel(employee: EmployeeWithRelations): string {
+  if (isFounderFixedSalary(employee.employee_type)) return "Fixed";
+  const salaryType = getEmployeeSalaryType(employee);
+  if (salaryType === "hourly") return "Hourly";
+  if (salaryType === "daily") return "Daily";
+  return "Monthly";
+}
 
 export function EmployeeCard({ employee }: { employee: EmployeeWithRelations }) {
   const primaryPhone = getPrimaryPhone(employee);
   const primaryPayment = getPrimaryPayment(employee);
   const extraPhones = employee.employee_phones.length - 1;
+  const payKind = payKindLabel(employee);
+  const rateDisplay = formatRateDisplay(employee);
 
   return (
     <div className="pillar-card p-4 sm:p-5 transition hover:shadow-md">
@@ -58,6 +73,23 @@ export function EmployeeCard({ employee }: { employee: EmployeeWithRelations }) 
           <p className="mt-1 text-sm text-[var(--muted)]">
             {employee.employee_code}
             {employee.designation && ` · ${employee.designation}`}
+          </p>
+
+          <p className="mt-2 inline-flex flex-wrap items-center gap-1.5 text-sm">
+            <Wallet className="h-3.5 w-3.5 text-[var(--muted)]" />
+            <span className="rounded-md bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-800">
+              {payKind}
+            </span>
+            {rateDisplay ? (
+              <span className="font-medium text-gray-800">{rateDisplay}</span>
+            ) : (
+              <Link
+                href={`/people/${employee.id}/edit`}
+                className="text-xs font-medium text-amber-700 hover:underline"
+              >
+                Set pay rate
+              </Link>
+            )}
           </p>
 
           <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-600">

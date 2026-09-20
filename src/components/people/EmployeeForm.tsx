@@ -3,15 +3,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
-import type { EmployeeFormData, PaymentMethodType, SalaryType } from "@/types/database";
+import type { EmployeeFormData, PaymentMethodType } from "@/types/database";
 import {
   DEFAULT_MONTHLY_SL_DAYS,
   DEFAULT_SALARY_TYPE,
   EMPLOYEE_TYPE_LABELS,
   EMPLOYEE_STATUS_LABELS,
-  SALARY_TYPE_LABELS,
+  isFounderFixedSalary,
+  usesDailyWageWithSl,
 } from "@/types/database";
 import { createEmployee, updateEmployee } from "@/lib/actions/employees";
+import {
+  sanitizeDailyRateInput,
+  sanitizeHourlyRateInput,
+} from "@/lib/utils/employees";
 
 interface EmployeeFormProps {
   initialData: EmployeeFormData;
@@ -162,13 +167,16 @@ export function EmployeeForm({ initialData, employeeId }: EmployeeFormProps) {
               value={form.employee_type}
               onChange={(e) => {
                 const employee_type = e.target.value as EmployeeFormData["employee_type"];
+                const salary_type = DEFAULT_SALARY_TYPE[employee_type];
                 setForm((prev) => ({
                   ...prev,
                   employee_type,
-                  salary_type: DEFAULT_SALARY_TYPE[employee_type],
-                  monthly_sl_days: String(
-                    DEFAULT_MONTHLY_SL_DAYS[employee_type] ?? 0
-                  ),
+                  salary_type,
+                  monthly_sl_days: isFounderFixedSalary(employee_type)
+                    ? "0"
+                    : usesDailyWageWithSl(employee_type)
+                      ? String(DEFAULT_MONTHLY_SL_DAYS[employee_type] ?? 0)
+                      : "0",
                 }));
               }}
             >
@@ -232,61 +240,57 @@ export function EmployeeForm({ initialData, employeeId }: EmployeeFormProps) {
       <section className="pillar-card p-6">
         <h2 className="mb-4 text-lg font-semibold">Pay & Salary</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className={labelClass}>Pay type *</label>
-            <select
-              className={inputClass}
-              value={form.salary_type}
-              onChange={(e) => {
-                const salary_type = e.target.value as SalaryType;
-                setForm((prev) => ({
-                  ...prev,
-                  salary_type,
-                  monthly_sl_days:
-                    salary_type === "monthly"
-                      ? String(
-                          DEFAULT_MONTHLY_SL_DAYS[prev.employee_type] ?? 0
-                        )
-                      : "0",
-                }));
-              }}
-            >
-              {Object.entries(SALARY_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {form.salary_type === "daily" ? (
-            <div>
-              <label className={labelClass}>Daily rate (₹)</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                className={inputClass}
-                placeholder="e.g. 800 for labour"
-                value={form.daily_rate}
-                onChange={(e) => updateField("daily_rate", e.target.value)}
-              />
-            </div>
-          ) : (
+          {isFounderFixedSalary(form.employee_type) ? (
             <>
+              <div className="sm:col-span-2">
+                <p className="text-sm text-[var(--muted)]">
+                  Founders receive a fixed monthly salary. Attendance and SL are
+                  not tracked.
+                </p>
+              </div>
               <div>
-                <label className={labelClass}>Monthly salary (₹)</label>
+                <label className={labelClass}>Fixed monthly salary (₹) *</label>
                 <input
                   type="number"
                   min="0"
                   step="1"
                   className={inputClass}
-                  placeholder="e.g. 45000 for engineer"
+                  placeholder="e.g. 150000"
                   value={form.monthly_salary}
                   onChange={(e) =>
                     updateField("monthly_salary", e.target.value)
                   }
+                  required
                 />
+              </div>
+            </>
+          ) : usesDailyWageWithSl(form.employee_type) ? (
+            <>
+              <div className="sm:col-span-2">
+                <p className="text-sm text-[var(--muted)]">
+                  Foreman & engineer: fixed daily wage from shift attendance (½,
+                  full, double). Paid SL days per month — mark SL in attendance.
+                </p>
+              </div>
+              <div>
+                <label className={labelClass}>Daily wage (₹) *</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className={inputClass}
+                  placeholder="e.g. 850.50 per day"
+                  value={form.daily_rate}
+                  onChange={(e) =>
+                    updateField(
+                      "daily_rate",
+                      sanitizeDailyRateInput(e.target.value)
+                    )
+                  }
+                  required
+                />
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Up to 2 decimal places (e.g. 850.50).
+                </p>
               </div>
               <div>
                 <label className={labelClass}>Paid SL days / month</label>
@@ -295,15 +299,45 @@ export function EmployeeForm({ initialData, employeeId }: EmployeeFormProps) {
                   min="0"
                   step="0.5"
                   className={inputClass}
-                  placeholder="e.g. 1 for engineer"
+                  placeholder="e.g. 1"
                   value={form.monthly_sl_days}
                   onChange={(e) =>
                     updateField("monthly_sl_days", e.target.value)
                   }
                 />
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  SL days are paid and not deducted. Mark SL in attendance on
-                  holidays or leave.
+                  SL within this limit is paid at the daily rate. Extra SL is
+                  unpaid.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="sm:col-span-2">
+                <p className="text-sm text-[var(--muted)]">
+                  Hourly pay from hours worked in attendance (8h = 1 present
+                  day, extra = overtime). No SL for this role.
+                </p>
+              </div>
+              <div>
+                <label className={labelClass}>Hourly rate (₹) *</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className={inputClass}
+                  placeholder="e.g. 68.75"
+                  value={form.hourly_rate}
+                  onChange={(e) =>
+                    updateField(
+                      "hourly_rate",
+                      sanitizeHourlyRateInput(e.target.value)
+                    )
+                  }
+                  required
+                />
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Up to 2 decimal places. Gross = all hours worked × hourly
+                  rate.
                 </p>
               </div>
             </>

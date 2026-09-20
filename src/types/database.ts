@@ -5,7 +5,9 @@ export type EmployeeType =
   | "staff"
   | "engineer"
   | "foreman"
-  | "labour";
+  | "labour"
+  | "carpenter"
+  | "mason";
 
 export type EmployeeStatus = "active" | "inactive" | "left";
 
@@ -41,6 +43,7 @@ export interface Employee {
   notes: string | null;
   salary_type: SalaryType;
   daily_rate: number | null;
+  hourly_rate: number | null;
   monthly_salary: number | null;
   monthly_sl_days: number;
   created_by: string | null;
@@ -115,6 +118,7 @@ export interface EmployeeFormData {
   notes: string;
   salary_type: SalaryType;
   daily_rate: string;
+  hourly_rate: string;
   monthly_salary: string;
   monthly_sl_days: string;
   phones: PhoneInput[];
@@ -126,6 +130,8 @@ export interface SalaryRow {
   manDays: number;
   absentDays: number;
   slDays: number;
+  regularHours: number;
+  overtimeHours: number;
   dailyRate: number | null;
   monthlySalary: number | null;
   salaryType: SalaryType;
@@ -246,7 +252,47 @@ export const EMPLOYEE_TYPE_LABELS: Record<EmployeeType, string> = {
   engineer: "Engineer",
   foreman: "Foreman",
   labour: "Labour",
+  carpenter: "Carpenter",
+  mason: "Mason",
 };
+
+/** List / row order: top of org → site workers */
+export const EMPLOYEE_TYPE_DISPLAY_ORDER: EmployeeType[] = [
+  "founder",
+  "engineer",
+  "foreman",
+  "carpenter",
+  "mason",
+  "labour",
+  "staff",
+];
+
+export function compareEmployeeTypes(
+  a: EmployeeType,
+  b: EmployeeType
+): number {
+  const rank = (type: EmployeeType) => {
+    const index = EMPLOYEE_TYPE_DISPLAY_ORDER.indexOf(type);
+    return index === -1 ? EMPLOYEE_TYPE_DISPLAY_ORDER.length : index;
+  };
+  return rank(a) - rank(b);
+}
+
+/** Dropdown options for type filters (People, Attendance, Salary) */
+export const EMPLOYEE_TYPE_FILTER_OPTIONS = [
+  { value: "all", label: "Everyone" },
+  ...EMPLOYEE_TYPE_DISPLAY_ORDER.map((value) => ({
+    value,
+    label: EMPLOYEE_TYPE_LABELS[value],
+  })),
+];
+
+/** Daily-wage site workers counted with labour in site analytics */
+export const SITE_LABOUR_TYPES: EmployeeType[] = [
+  "labour",
+  "carpenter",
+  "mason",
+];
 
 export const EMPLOYEE_STATUS_LABELS: Record<EmployeeStatus, string> = {
   active: "Active",
@@ -260,11 +306,45 @@ export const EMPLOYEE_TYPE_COLORS: Record<EmployeeType, string> = {
   engineer: "bg-purple-100 text-purple-700",
   foreman: "bg-amber-100 text-amber-800",
   labour: "bg-slate-100 text-slate-700",
+  carpenter: "bg-orange-100 text-orange-800",
+  mason: "bg-stone-100 text-stone-700",
 };
 
-export type ShiftType = "absent" | "half" | "full" | "double" | "sl";
+export type ShiftType =
+  | "absent"
+  | "half"
+  | "full"
+  | "double"
+  | "sl"
+  | "hours";
 
-export type SalaryType = "daily" | "monthly";
+export type SalaryType = "daily" | "monthly" | "hourly";
+
+/** Foreman & engineer: shift attendance + daily wage with paid SL allowance */
+export const DAILY_WAGE_SL_EMPLOYEE_TYPES: EmployeeType[] = [
+  "foreman",
+  "engineer",
+];
+
+export function usesDailyWageWithSl(employeeType: EmployeeType): boolean {
+  return DAILY_WAGE_SL_EMPLOYEE_TYPES.includes(employeeType);
+}
+
+export function usesShiftAttendance(employeeType: EmployeeType): boolean {
+  return usesDailyWageWithSl(employeeType);
+}
+
+/** Founder: fixed monthly pay only — no attendance or SL tracking */
+export function isFounderFixedSalary(employeeType: EmployeeType): boolean {
+  return employeeType === "founder";
+}
+
+export function tracksAttendance(employeeType: EmployeeType): boolean {
+  return !isFounderFixedSalary(employeeType);
+}
+
+/** Standard hours that count as one present day */
+export const STANDARD_SHIFT_HOURS = 8;
 
 export interface AttendanceRecord {
   id: string;
@@ -272,6 +352,8 @@ export interface AttendanceRecord {
   attendance_date: string;
   shift_type: ShiftType;
   day_units: number;
+  hours_worked: number | null;
+  overtime_hours: number;
   project_id: string | null;
   notes: string | null;
   created_by: string | null;
@@ -283,7 +365,15 @@ export interface AttendanceCellInput {
   employee_id: string;
   attendance_date: string;
   shift_type: ShiftType;
+  hours_worked?: number | null;
   project_id?: string | null;
+}
+
+export type HourlyAttendanceStatus = "absent" | "sl" | "work";
+
+export interface HourlyAttendanceCell {
+  status: HourlyAttendanceStatus;
+  hours: number;
 }
 
 export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
@@ -292,6 +382,7 @@ export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   full: "Full Shift",
   double: "Double Shift",
   sl: "SL (Paid Leave)",
+  hours: "Hours worked",
 };
 
 export const SHIFT_TYPE_SHORT: Record<ShiftType, string> = {
@@ -300,6 +391,7 @@ export const SHIFT_TYPE_SHORT: Record<ShiftType, string> = {
   full: "F",
   double: "2×",
   sl: "SL",
+  hours: "H",
 };
 
 export const SHIFT_DAY_UNITS: Record<ShiftType, number> = {
@@ -308,6 +400,7 @@ export const SHIFT_DAY_UNITS: Record<ShiftType, number> = {
   full: 1,
   double: 2,
   sl: 0,
+  hours: 0,
 };
 
 export const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
@@ -316,11 +409,13 @@ export const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
   full: "bg-emerald-50 text-emerald-700 border-emerald-100",
   double: "bg-violet-50 text-violet-700 border-violet-100",
   sl: "bg-sky-50 text-sky-700 border-sky-100",
+  hours: "bg-emerald-50 text-emerald-800 border-emerald-100",
 };
 
 export const SALARY_TYPE_LABELS: Record<SalaryType, string> = {
   daily: "Daily wage",
   monthly: "Fixed monthly",
+  hourly: "Hourly wage",
 };
 
 /** Standard working days/month for monthly salary deductions (India sites) */
@@ -328,15 +423,16 @@ export const STANDARD_MONTH_WORKING_DAYS = 26;
 
 export const DEFAULT_MONTHLY_SL_DAYS: Partial<Record<EmployeeType, number>> = {
   engineer: 1,
-  staff: 1,
-  foreman: 0,
+  foreman: 1,
 };
 
 export const DEFAULT_SALARY_TYPE: Record<EmployeeType, SalaryType> = {
-  labour: "daily",
-  foreman: "monthly",
-  engineer: "monthly",
-  staff: "monthly",
+  labour: "hourly",
+  carpenter: "hourly",
+  mason: "hourly",
+  foreman: "daily",
+  engineer: "daily",
+  staff: "hourly",
   founder: "monthly",
 };
 
@@ -355,6 +451,24 @@ export interface Project {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProjectBankInflow {
+  id: string;
+  project_id: string;
+  received_date: string;
+  amount: number;
+  reference_note: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface ProjectBankInflowWeekSummary {
+  weekStart: string;
+  weekEnd: string;
+  weekLabel: string;
+  totalAmount: number;
+  entryCount: number;
 }
 
 export interface ProjectAssignment {
@@ -384,6 +498,61 @@ export interface ProjectFormData {
   start_date: string;
   end_date: string;
   description: string;
+}
+
+export type RaBillPaymentStatus = "pending" | "received";
+
+export interface RaBill {
+  id: string;
+  project_id: string;
+  bill_label: string;
+  contractor_name: string | null;
+  confirmed_date: string;
+  work_period_start: string | null;
+  work_period_end: string | null;
+  gross_amount: number;
+  gst_applicable: boolean;
+  igst_amount: number;
+  retention_amount: number;
+  tds_amount: number;
+  net_amount: number;
+  bank_received_date: string | null;
+  bank_received_amount: number | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RaBillWithProject extends RaBill {
+  projects: Pick<Project, "id" | "name" | "project_code" | "client_name">;
+}
+
+export interface RaBillFormData {
+  project_id: string;
+  bill_label: string;
+  contractor_name: string;
+  confirmed_date: string;
+  work_period_start: string;
+  work_period_end: string;
+  gross_amount: string;
+  gst_applicable: boolean;
+  retention_amount: string;
+  tds_amount: string;
+  bank_received_date: string;
+  bank_received_amount: string;
+  notes: string;
+}
+
+export interface RaBillSummary {
+  billCount: number;
+  pendingCount: number;
+  totalGross: number;
+  totalRetention: number;
+  totalTds: number;
+  totalNet: number;
+  pendingNet: number;
+  receivedNet: number;
 }
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
@@ -440,18 +609,49 @@ export interface MonthSalaryTotals {
   balanceDue: number;
 }
 
+/** RA bills grouped by confirmed / submitted month */
+export interface MonthRaBillStats {
+  month: string;
+  monthLabel: string;
+  monthShort: string;
+  billCount: number;
+  grossAmount: number;
+  igstAmount: number;
+  totalBillAmount: number;
+  retentionAmount: number;
+  tdsAmount: number;
+  netAmount: number;
+  /** Sum of bank_received_amount for bills confirmed this month */
+  receivedFromBills: number;
+  pendingNet: number;
+}
+
+/** Cash credited to bank from RA bills, grouped by bank_received_date month */
+export interface MonthRaBillCashReceipt {
+  month: string;
+  monthLabel: string;
+  monthShort: string;
+  amount: number;
+  billCount: number;
+}
+
 export interface AnalyticsData {
   fromMonth: string;
   toMonth: string;
   workByMonth: MonthWorkStats[];
   salaryByType: MonthSalaryTypeStats[];
   salaryTotalsByMonth: MonthSalaryTotals[];
+  raBillsByMonth: MonthRaBillStats[];
+  raBillCashByMonth: MonthRaBillCashReceipt[];
   selectedMonthWork: MonthWorkStats | null;
   selectedMonthSalaryTotals: MonthSalaryTotals | null;
+  selectedMonthRaBills: MonthRaBillStats | null;
 }
 
 export const EMPLOYEE_TYPE_CHART_COLORS: Record<EmployeeType, string> = {
   labour: "#64748b",
+  carpenter: "#ea580c",
+  mason: "#78716c",
   foreman: "#d97706",
   engineer: "#9333ea",
   staff: "#6366f1",
@@ -459,9 +659,5 @@ export const EMPLOYEE_TYPE_CHART_COLORS: Record<EmployeeType, string> = {
 };
 
 export const ANALYTICS_SALARY_TYPES: EmployeeType[] = [
-  "labour",
-  "foreman",
-  "staff",
-  "engineer",
-  "founder",
+  ...EMPLOYEE_TYPE_DISPLAY_ORDER,
 ];

@@ -10,6 +10,8 @@ import {
   syncEmployeeToSheet,
 } from "@/lib/google/sheets";
 import type { EmployeeFormData } from "@/types/database";
+import { usesDailyWageWithSl } from "@/types/database";
+import { roundToTwoDecimals } from "@/lib/utils/employees";
 
 function emptyToNull(value: string): string | null {
   return value.trim() === "" ? null : value.trim();
@@ -71,6 +73,14 @@ async function savePaymentMethods(
 }
 
 function buildEmployeePayload(data: EmployeeFormData) {
+  const isFounder = data.employee_type === "founder";
+  const isDailyWageSl = usesDailyWageWithSl(data.employee_type);
+  const salary_type = isFounder
+    ? "monthly"
+    : isDailyWageSl
+      ? "daily"
+      : "hourly";
+
   return {
     full_name: data.full_name.trim(),
     employee_type: data.employee_type,
@@ -89,19 +99,27 @@ function buildEmployeePayload(data: EmployeeFormData) {
     aadhaar_last_4: emptyToNull(data.aadhaar_last_4),
     pan_number: emptyToNull(data.pan_number),
     notes: emptyToNull(data.notes),
-    salary_type: data.salary_type,
+    salary_type,
     daily_rate:
-      data.salary_type === "daily" && data.daily_rate.trim() !== ""
-        ? Number.parseFloat(data.daily_rate)
+      isDailyWageSl && data.daily_rate.trim() !== ""
+        ? roundToTwoDecimals(Number.parseFloat(data.daily_rate))
+        : null,
+    hourly_rate:
+      !isFounder &&
+      !isDailyWageSl &&
+      data.hourly_rate.trim() !== ""
+        ? roundToTwoDecimals(Number.parseFloat(data.hourly_rate))
         : null,
     monthly_salary:
-      data.salary_type === "monthly" && data.monthly_salary.trim() !== ""
+      isFounder && data.monthly_salary.trim() !== ""
         ? Number.parseFloat(data.monthly_salary)
         : null,
     monthly_sl_days:
-      data.salary_type === "monthly"
-        ? Number.parseFloat(data.monthly_sl_days) || 0
-        : 0,
+      isFounder
+        ? 0
+        : isDailyWageSl
+          ? Number.parseFloat(data.monthly_sl_days) || 0
+          : 0,
   };
 }
 

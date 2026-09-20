@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { MapPin, Users } from "lucide-react";
+import { Landmark, MapPin, Users } from "lucide-react";
+import { formatIndianRupee } from "@/lib/utils/raBills";
 import type { Project } from "@/types/database";
 import {
   PROJECT_STATUS_COLORS,
@@ -10,9 +11,11 @@ import { formatProjectDate } from "@/lib/utils/projects";
 export function ProjectCard({
   project,
   teamCount,
+  bankInflowTotal,
 }: {
   project: Project;
   teamCount?: number;
+  bankInflowTotal?: number;
 }) {
   return (
     <div className="pillar-card p-4 sm:p-5 transition hover:shadow-md">
@@ -41,6 +44,12 @@ export function ProjectCard({
               <span className="inline-flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" />
                 {teamCount} on site
+              </span>
+            )}
+            {bankInflowTotal != null && bankInflowTotal > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-emerald-800">
+                <Landmark className="h-3.5 w-3.5" />
+                {formatIndianRupee(bankInflowTotal)} in bank
               </span>
             )}
           </div>

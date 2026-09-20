@@ -1,5 +1,7 @@
 import { PageHeader } from "@/components/layout/PageHeader";
+import { DashboardMoneySection } from "@/components/dashboard/DashboardMoneySection";
 import { StatCard } from "@/components/ui/StatCard";
+import { getDashboardOverview } from "@/lib/queries/dashboard";
 import { getDashboardStats } from "@/lib/queries/employees";
 import { getProjectStats } from "@/lib/queries/projects";
 import {
@@ -14,54 +16,69 @@ import {
   Clock,
   AlertCircle,
   ArrowRight,
+  IndianRupee,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
+import { formatIndianRupee } from "@/lib/utils/raBills";
 
 export default async function DashboardPage() {
   const weekStart = getCurrentWeekStart();
-  const [stats, projectStats, weekAttendance, todayAttendance] =
+  const [stats, projectStats, weekAttendance, todayAttendance, overview] =
     await Promise.all([
       getDashboardStats(),
       getProjectStats(),
       getAttendanceSummary(weekStart),
       getTodayAttendanceSummary(),
+      getDashboardOverview(),
     ]);
 
   return (
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle="Overview of projects, workforce & attendance"
+        subtitle="Sites, workforce, money & attendance at a glance"
         showAddEmployee
       />
 
-      {/* Primary KPI row — Infraly-style */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Active Projects"
-          value={projectStats.active}
-          icon={FolderKanban}
-          trend={`${projectStats.total} total`}
-        />
-        <StatCard
-          label="Active Workforce"
-          value={stats.total}
-          icon={Users}
-          trend={`${stats.labour} labour`}
-        />
-        <StatCard
-          label="Man-days This Week"
-          value={weekAttendance.totalDayUnits}
-          icon={Clock}
-          trend={`${todayAttendance.present} present today`}
-        />
-        <StatCard
-          label="Labour on Sites"
-          value={stats.labour + stats.foreman}
-          icon={HardHat}
-          trend={`${stats.engineer} engineers`}
-        />
-      </div>
+      {/* Money — top priority */}
+      <DashboardMoneySection data={overview} />
+
+      {/* Operations KPIs */}
+      <section className="mt-8">
+        <h2 className="mb-4 text-lg font-semibold">Operations</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Active Projects"
+            value={projectStats.active}
+            icon={FolderKanban}
+            trend={`${projectStats.total} total`}
+          />
+          <StatCard
+            label="Active Workforce"
+            value={stats.total}
+            icon={Users}
+            trend={`${stats.labour + stats.carpenter + stats.mason} labour trades`}
+          />
+          <StatCard
+            label="Man-days This Week"
+            value={weekAttendance.totalDayUnits}
+            icon={Clock}
+            trend={`${todayAttendance.present} present today`}
+          />
+          <StatCard
+            label="On Site (labour + foreman)"
+            value={
+              stats.labour +
+              stats.carpenter +
+              stats.mason +
+              stats.foreman
+            }
+            icon={HardHat}
+            trend={`${stats.engineer} engineers`}
+          />
+        </div>
+      </section>
 
       {/* Secondary metrics */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -77,9 +94,12 @@ export default async function DashboardPage() {
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label: "Labour", value: stats.labour, pct: stats.total ? Math.round((stats.labour / stats.total) * 100) : 0 },
-              { label: "Foreman", value: stats.foreman, pct: stats.total ? Math.round((stats.foreman / stats.total) * 100) : 0 },
+              { label: "Founder", value: stats.founder, pct: stats.total ? Math.round((stats.founder / stats.total) * 100) : 0 },
               { label: "Engineers", value: stats.engineer, pct: stats.total ? Math.round((stats.engineer / stats.total) * 100) : 0 },
+              { label: "Foreman", value: stats.foreman, pct: stats.total ? Math.round((stats.foreman / stats.total) * 100) : 0 },
+              { label: "Carpenter", value: stats.carpenter, pct: stats.total ? Math.round((stats.carpenter / stats.total) * 100) : 0 },
+              { label: "Mason", value: stats.mason, pct: stats.total ? Math.round((stats.mason / stats.total) * 100) : 0 },
+              { label: "Labour", value: stats.labour, pct: stats.total ? Math.round((stats.labour / stats.total) * 100) : 0 },
               { label: "Staff", value: stats.staff, pct: stats.total ? Math.round((stats.staff / stats.total) * 100) : 0 },
             ].map((item) => (
               <div key={item.label} className="rounded-xl bg-[var(--background)] p-4">
@@ -127,12 +147,14 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Quick links row */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+      {/* Quick links */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {[
-          { href: "/projects", label: "Projects", desc: `${projectStats.active} active sites`, color: "bg-violet-50 text-violet-700" },
-          { href: "/people", label: "People", desc: `${stats.total} employees`, color: "bg-indigo-50 text-indigo-700" },
-          { href: "/attendance", label: "Attendance", desc: `${weekAttendance.totalDayUnits} man-days this week`, color: "bg-purple-50 text-purple-700" },
+          { href: "/projects", label: "Projects", desc: `${projectStats.active} active`, color: "bg-violet-50 text-violet-700" },
+          { href: "/ra-bills", label: "RA Bills", desc: `${formatIndianRupee(overview.raBill.pendingNet)} pending`, color: "bg-amber-50 text-amber-800" },
+          { href: "/salary", label: "Salary", desc: overview.salaryMonth ? `${overview.salaryMonth.balanceDue > 0 ? "Due" : "Clear"} this month` : "Payroll", color: "bg-indigo-50 text-indigo-700" },
+          { href: "/people", label: "People", desc: `${stats.total} employees`, color: "bg-slate-100 text-slate-700" },
+          { href: "/attendance", label: "Attendance", desc: `${weekAttendance.totalDayUnits} man-days / week`, color: "bg-purple-50 text-purple-700" },
         ].map((item) => (
           <Link
             key={item.href}
@@ -168,6 +190,25 @@ export default async function DashboardPage() {
               View people →
             </Link>
           </div>
+        </div>
+      )}
+
+      {overview.raBill.totalNet > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm">
+          <IndianRupee className="h-4 w-4 text-[var(--muted)]" />
+          <span className="text-[var(--muted)]">All RA bills:</span>
+          <span className="font-medium">
+            {formatIndianRupee(overview.raBill.receivedNet)} in bank
+          </span>
+          <span className="text-[var(--muted)]">·</span>
+          <span className="font-medium text-amber-800">
+            {formatIndianRupee(overview.raBill.pendingNet)} pending
+          </span>
+          <span className="text-[var(--muted)]">·</span>
+          <Link href="/ra-bills" className="inline-flex items-center gap-1 font-medium text-[var(--primary)] hover:underline">
+            <FileText className="h-3.5 w-3.5" />
+            Manage bills
+          </Link>
         </div>
       )}
     </div>

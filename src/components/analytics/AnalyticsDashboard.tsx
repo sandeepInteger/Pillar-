@@ -22,13 +22,24 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { HardHat, IndianRupee, TrendingUp, Users } from "lucide-react";
+import {
+  FileText,
+  HardHat,
+  IndianRupee,
+  Landmark,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { formatIndianRupee } from "@/lib/utils/raBills";
 
 const PRIMARY = "#5D3FD3";
 const PAID_COLOR = "#10b981";
 const DUE_COLOR = "#f59e0b";
 const LABOUR_COLOR = "#64748b";
 const FOREMAN_COLOR = "#d97706";
+const IGST_COLOR = "#059669";
+const RETENTION_COLOR = "#d97706";
+const TDS_COLOR = "#64748b";
 
 interface AnalyticsDashboardProps {
   data: AnalyticsData;
@@ -91,6 +102,22 @@ function KpiCard({
 export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
   const work = data.selectedMonthWork;
   const salary = data.selectedMonthSalaryTotals;
+  const raBills = data.selectedMonthRaBills;
+
+  const raBillChartData = data.raBillsByMonth.map((r) => ({
+    name: r.monthShort,
+    gross: r.grossAmount,
+    igst: r.igstAmount,
+    retention: r.retentionAmount,
+    tds: r.tdsAmount,
+    net: r.netAmount,
+  }));
+
+  const raBillCashChartData = data.raBillCashByMonth.map((r) => ({
+    name: r.monthShort,
+    cashInBank: r.amount,
+    netConfirmed: data.raBillsByMonth.find((b) => b.month === r.month)?.netAmount ?? 0,
+  }));
 
   const workChartData = data.workByMonth.map((w) => ({
     name: w.monthShort,
@@ -499,6 +526,279 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
                   </tr>
                 ))}
             </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* RA Bills analytics */}
+      <section>
+        <h2 className="mb-1 text-lg font-semibold">RA Bills — billing & bank</h2>
+        <p className="mb-4 text-sm text-[var(--muted)]">
+          Month-wise totals by bill confirmed date. Bank credit uses the date
+          money was received.
+        </p>
+
+        <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="Bills confirmed"
+            value={raBills?.billCount ?? 0}
+            sub={work?.monthLabel ?? "Selected month"}
+            icon={FileText}
+            accent={PRIMARY}
+          />
+          <KpiCard
+            label="Gross + IGST"
+            value={
+              raBills
+                ? formatIndianRupee(raBills.totalBillAmount)
+                : "—"
+            }
+            sub={
+              raBills && raBills.igstAmount > 0
+                ? `IGST ${formatIndianRupee(raBills.igstAmount)}`
+                : "Bill value on RA"
+            }
+            icon={TrendingUp}
+            accent={IGST_COLOR}
+          />
+          <KpiCard
+            label="Retention + TDS"
+            value={
+              raBills
+                ? formatIndianRupee(
+                    raBills.retentionAmount + raBills.tdsAmount
+                  )
+                : "—"
+            }
+            sub={
+              raBills
+                ? `${formatIndianRupee(raBills.retentionAmount)} held · ${formatIndianRupee(raBills.tdsAmount)} TDS`
+                : undefined
+            }
+            icon={IndianRupee}
+            accent={RETENTION_COLOR}
+          />
+          <KpiCard
+            label="Net / pending"
+            value={
+              raBills ? formatIndianRupee(raBills.netAmount) : "—"
+            }
+            sub={
+              raBills
+                ? `${formatIndianRupee(raBills.receivedFromBills)} in bank · ${formatIndianRupee(raBills.pendingNet)} awaiting`
+                : "Expected in bank"
+            }
+            icon={Landmark}
+            accent={PAID_COLOR}
+          />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <ChartCard
+            title="Bill amounts by confirmed month"
+            subtitle="Gross, IGST, retention & TDS"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={raBillChartData} barGap={2}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip
+                  formatter={(value) => formatIndianRupee(Number(value ?? 0))}
+                />
+                <Legend />
+                <Bar
+                  dataKey="gross"
+                  name="Gross"
+                  fill={PRIMARY}
+                  radius={[2, 2, 0, 0]}
+                />
+                <Bar
+                  dataKey="igst"
+                  name="IGST"
+                  fill={IGST_COLOR}
+                  radius={[2, 2, 0, 0]}
+                />
+                <Bar
+                  dataKey="retention"
+                  name="Retention"
+                  fill={RETENTION_COLOR}
+                  radius={[2, 2, 0, 0]}
+                />
+                <Bar
+                  dataKey="tds"
+                  name="TDS"
+                  fill={TDS_COLOR}
+                  radius={[2, 2, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard
+            title="Net vs bank credit"
+            subtitle="Net from bills confirmed vs cash received that month"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={raBillCashChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip
+                  formatter={(value) => formatIndianRupee(Number(value ?? 0))}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="netConfirmed"
+                  name="Net (confirmed month)"
+                  stroke={PRIMARY}
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: PRIMARY }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="cashInBank"
+                  name="Cash in bank (receipt month)"
+                  stroke={PAID_COLOR}
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </div>
+
+        <div className="mt-4 overflow-x-auto rounded-xl border border-[var(--border)] bg-white">
+          <table className="min-w-[1040px] w-full text-sm">
+            <thead>
+              <tr className="border-b bg-[var(--background)] text-left text-xs uppercase tracking-wide text-[var(--muted)]">
+                <th className="px-4 py-3">Month</th>
+                <th className="px-4 py-3 text-right">Bills</th>
+                <th className="px-4 py-3 text-right">Gross</th>
+                <th className="px-4 py-3 text-right">IGST</th>
+                <th className="px-4 py-3 text-right">Total bill</th>
+                <th className="px-4 py-3 text-right">Retention</th>
+                <th className="px-4 py-3 text-right">TDS</th>
+                <th className="px-4 py-3 text-right">Net in bank</th>
+                <th className="px-4 py-3 text-right">Received</th>
+                <th className="px-4 py-3 text-right">Pending</th>
+                <th className="px-4 py-3 text-right">Bank credit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.raBillsByMonth.map((row) => {
+                const cash = data.raBillCashByMonth.find(
+                  (c) => c.month === row.month
+                );
+                return (
+                  <tr
+                    key={row.month}
+                    className="border-b last:border-0 hover:bg-gray-50/50"
+                  >
+                    <td className="px-4 py-3 font-medium">{row.monthLabel}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {row.billCount}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {formatIndianRupee(row.grossAmount)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-emerald-800">
+                      {row.igstAmount > 0
+                        ? formatIndianRupee(row.igstAmount)
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {formatIndianRupee(row.totalBillAmount)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-amber-800">
+                      {formatIndianRupee(row.retentionAmount)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-slate-600">
+                      {formatIndianRupee(row.tdsAmount)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-[var(--primary)]">
+                      {formatIndianRupee(row.netAmount)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-emerald-700">
+                      {formatIndianRupee(row.receivedFromBills)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-amber-700">
+                      {formatIndianRupee(row.pendingNet)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {cash && cash.amount > 0
+                        ? formatIndianRupee(cash.amount)
+                        : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            {data.raBillsByMonth.some((r) => r.billCount > 0) && (
+              <tfoot>
+                <tr className="border-t bg-[var(--background)] font-semibold">
+                  <td className="px-4 py-3">Total</td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {data.raBillsByMonth.reduce((s, r) => s + r.billCount, 0)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatIndianRupee(
+                      data.raBillsByMonth.reduce((s, r) => s + r.grossAmount, 0)
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatIndianRupee(
+                      data.raBillsByMonth.reduce((s, r) => s + r.igstAmount, 0)
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatIndianRupee(
+                      data.raBillsByMonth.reduce(
+                        (s, r) => s + r.totalBillAmount,
+                        0
+                      )
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatIndianRupee(
+                      data.raBillsByMonth.reduce(
+                        (s, r) => s + r.retentionAmount,
+                        0
+                      )
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatIndianRupee(
+                      data.raBillsByMonth.reduce((s, r) => s + r.tdsAmount, 0)
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatIndianRupee(
+                      data.raBillsByMonth.reduce((s, r) => s + r.netAmount, 0)
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatIndianRupee(
+                      data.raBillsByMonth.reduce(
+                        (s, r) => s + r.receivedFromBills,
+                        0
+                      )
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatIndianRupee(
+                      data.raBillsByMonth.reduce((s, r) => s + r.pendingNet, 0)
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatIndianRupee(
+                      data.raBillCashByMonth.reduce((s, r) => s + r.amount, 0)
+                    )}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </section>

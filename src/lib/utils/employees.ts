@@ -1,8 +1,51 @@
-import type { EmployeeFormData, EmployeeWithRelations } from "@/types/database";
+import type {
+  Employee,
+  EmployeeFormData,
+  EmployeeWithRelations,
+} from "@/types/database";
 import {
+  compareEmployeeTypes,
   DEFAULT_MONTHLY_SL_DAYS,
   DEFAULT_SALARY_TYPE,
 } from "@/types/database";
+
+export function compareEmployeesByHierarchy(
+  a: Pick<Employee, "employee_type" | "full_name">,
+  b: Pick<Employee, "employee_type" | "full_name">
+): number {
+  const byType = compareEmployeeTypes(a.employee_type, b.employee_type);
+  if (byType !== 0) return byType;
+  return a.full_name.localeCompare(b.full_name, "en", { sensitivity: "base" });
+}
+
+export function sortEmployeesByHierarchy<
+  T extends Pick<Employee, "employee_type" | "full_name">,
+>(employees: T[]): T[] {
+  return [...employees].sort(compareEmployeesByHierarchy);
+}
+
+/** Wage/rate input: digits and at most 2 decimal places */
+export function sanitizeDecimalRateInput(raw: string): string {
+  if (raw === "") return "";
+  let cleaned = raw.replace(/[^\d.]/g, "");
+  const dotIndex = cleaned.indexOf(".");
+  if (dotIndex !== -1) {
+    const intPart = cleaned.slice(0, dotIndex);
+    const decPart = cleaned.slice(dotIndex + 1).replace(/\./g, "").slice(0, 2);
+    cleaned = decPart.length > 0 ? `${intPart}.${decPart}` : `${intPart}.`;
+  }
+  return cleaned;
+}
+
+/** @deprecated use sanitizeDecimalRateInput */
+export const sanitizeHourlyRateInput = sanitizeDecimalRateInput;
+
+/** @deprecated use sanitizeDecimalRateInput */
+export const sanitizeDailyRateInput = sanitizeDecimalRateInput;
+
+export function roundToTwoDecimals(value: number): number {
+  return Math.round(value * 100) / 100;
+}
 
 export function getEmptyFormData(): EmployeeFormData {
   return {
@@ -23,8 +66,9 @@ export function getEmptyFormData(): EmployeeFormData {
     aadhaar_last_4: "",
     pan_number: "",
     notes: "",
-    salary_type: "daily",
+    salary_type: "hourly",
     daily_rate: "",
+    hourly_rate: "",
     monthly_salary: "",
     monthly_sl_days: "0",
     phones: [{ phone_number: "", label: "primary", is_primary: true }],
@@ -55,7 +99,13 @@ export function employeeToFormData(
     notes: employee.notes ?? "",
     salary_type: employee.salary_type ?? DEFAULT_SALARY_TYPE[employee.employee_type],
     daily_rate:
-      employee.daily_rate != null ? String(employee.daily_rate) : "",
+      employee.daily_rate != null
+        ? roundToTwoDecimals(Number(employee.daily_rate)).toFixed(2)
+        : "",
+    hourly_rate:
+      employee.hourly_rate != null
+        ? roundToTwoDecimals(Number(employee.hourly_rate)).toFixed(2)
+        : "",
     monthly_salary:
       employee.monthly_salary != null ? String(employee.monthly_salary) : "",
     monthly_sl_days: String(employee.monthly_sl_days ?? DEFAULT_MONTHLY_SL_DAYS[employee.employee_type] ?? 0),

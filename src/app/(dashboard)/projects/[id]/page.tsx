@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ProjectBankInflowPanel } from "@/components/projects/ProjectBankInflowPanel";
 import { ProjectTeamPanel } from "@/components/projects/ProjectTeamPanel";
+import { ProjectRaBillsPanel } from "@/components/ra-bills/ProjectRaBillsPanel";
+import {
+  getProjectBankInflows,
+  summarizeProjectInflows,
+} from "@/lib/queries/projectBankInflows";
 import { getProject, getProjects } from "@/lib/queries/projects";
+import { getRaBills, summarizeRaBills } from "@/lib/queries/raBills";
 import { getEmployees } from "@/lib/queries/employees";
 import {
   PROJECT_STATUS_COLORS,
@@ -19,11 +26,18 @@ export default async function ProjectDetailPage({
   params,
 }: ProjectDetailPageProps) {
   const { id } = await params;
-  const [project, allEmployees, allProjects] = await Promise.all([
-    getProject(id),
-    getEmployees({ status: "active" }),
-    getProjects({ status: "active" }),
-  ]);
+  const [project, allEmployees, allProjects, projectRaBills, bankInflows] =
+    await Promise.all([
+      getProject(id),
+      getEmployees({ status: "active" }),
+      getProjects({ status: "active" }),
+      getRaBills({ projectId: id }),
+      getProjectBankInflows(id),
+    ]);
+
+  const inflowSummary = summarizeProjectInflows(bankInflows);
+
+  const raSummary = summarizeRaBills(projectRaBills);
 
   if (!project) notFound();
 
@@ -42,6 +56,18 @@ export default async function ProjectDetailPage({
           className="pillar-btn-secondary w-full justify-center sm:w-auto"
         >
           Mark attendance
+        </Link>
+        <Link
+          href={`/ra-bills?project=${id}`}
+          className="pillar-btn-secondary w-full justify-center sm:w-auto"
+        >
+          RA Bills
+        </Link>
+        <Link
+          href={`/projects/${id}#bank-inflow`}
+          className="pillar-btn-secondary w-full justify-center sm:w-auto"
+        >
+          Bank inflow
         </Link>
         <Link
           href={`/projects/${id}/edit`}
@@ -89,6 +115,18 @@ export default async function ProjectDetailPage({
       {project.description && (
         <p className="mb-8 text-sm text-[var(--muted)]">{project.description}</p>
       )}
+
+      <ProjectRaBillsPanel
+        projectId={id}
+        bills={projectRaBills}
+        summary={raSummary}
+      />
+
+      <ProjectBankInflowPanel
+        projectId={id}
+        inflows={bankInflows}
+        summary={inflowSummary}
+      />
 
       <ProjectTeamPanel
         projectId={id}

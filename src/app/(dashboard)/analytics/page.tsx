@@ -36,7 +36,7 @@ export default async function AnalyticsPage({
     <div>
       <PageHeader
         title="Analytics"
-        subtitle="Work on site & salary trends — compare month by month"
+        subtitle="Work, salary & RA bill trends — compare month by month"
       >
         <Suspense fallback={null}>
           <AnalyticsFilters />
