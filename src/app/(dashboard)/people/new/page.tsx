@@ -1,8 +1,11 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmployeeForm } from "@/components/people/EmployeeForm";
 import { getEmptyFormData } from "@/lib/utils/employees";
+import { requireAdmin } from "@/lib/utils/authGuard";
 
-export default function NewEmployeePage() {
+export default async function NewEmployeePage() {
+  await requireAdmin();
+
   return (
     <div>
       <PageHeader

@@ -10,7 +10,7 @@ import {
 } from "@/lib/queries/projectBankInflows";
 import { getProject, getProjects } from "@/lib/queries/projects";
 import { getRaBills, summarizeRaBills } from "@/lib/queries/raBills";
-import { getEmployees } from "@/lib/queries/employees";
+import { getEmployees, getProfile } from "@/lib/queries/employees";
 import {
   PROJECT_STATUS_COLORS,
   PROJECT_STATUS_LABELS,
@@ -26,14 +26,16 @@ export default async function ProjectDetailPage({
   params,
 }: ProjectDetailPageProps) {
   const { id } = await params;
-  const [project, allEmployees, allProjects, projectRaBills, bankInflows] =
+  const [project, allEmployees, allProjects, projectRaBills, bankInflows, profile] =
     await Promise.all([
       getProject(id),
       getEmployees({ status: "active" }),
       getProjects({ status: "active" }),
       getRaBills({ projectId: id }),
       getProjectBankInflows(id),
+      getProfile(),
     ]);
+  const isAdmin = profile?.role === "admin";
 
   const inflowSummary = summarizeProjectInflows(bankInflows);
 
@@ -69,13 +71,15 @@ export default async function ProjectDetailPage({
         >
           Bank inflow
         </Link>
-        <Link
-          href={`/projects/${id}/edit`}
-          className="pillar-btn-secondary w-full justify-center gap-2 sm:w-auto"
-        >
-          <Pencil className="h-4 w-4" />
-          Edit
-        </Link>
+        {isAdmin && (
+          <Link
+            href={`/projects/${id}/edit`}
+            className="pillar-btn-secondary w-full justify-center gap-2 sm:w-auto"
+          >
+            <Pencil className="h-4 w-4" />
+            Edit
+          </Link>
+        )}
       </PageHeader>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -120,12 +124,14 @@ export default async function ProjectDetailPage({
         projectId={id}
         bills={projectRaBills}
         summary={raSummary}
+        isAdmin={isAdmin}
       />
 
       <ProjectBankInflowPanel
         projectId={id}
         inflows={bankInflows}
         summary={inflowSummary}
+        isAdmin={isAdmin}
       />
 
       <ProjectTeamPanel
@@ -133,6 +139,7 @@ export default async function ProjectDetailPage({
         assignments={project.project_assignments}
         availableEmployees={availableEmployees}
         otherProjects={allProjects.filter((p) => p.id !== id)}
+        isAdmin={isAdmin}
       />
     </div>
   );

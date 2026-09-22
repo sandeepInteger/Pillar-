@@ -35,6 +35,9 @@ interface EmployeeSalaryLedgerProps {
   detail: EmployeeSalaryDetail;
   employeeType?: string;
   projectId?: string;
+  /** Base route for the month prev/next links — defaults to the standalone Salary page. */
+  basePath?: string;
+  isAdmin: boolean;
 }
 
 const PURPOSE_OPTIONS: SalaryPaymentType[] = [
@@ -49,6 +52,8 @@ export function EmployeeSalaryLedger({
   detail,
   employeeType,
   projectId,
+  basePath = "/salary",
+  isAdmin,
 }: EmployeeSalaryLedgerProps) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
@@ -68,7 +73,7 @@ export function EmployeeSalaryLedger({
     params.set("month", targetMonth);
     if (employeeType && employeeType !== "all") params.set("type", employeeType);
     if (projectId) params.set("project", projectId);
-    return `/salary/${detail.employee.id}?${params.toString()}`;
+    return `${basePath}/${detail.employee.id}?${params.toString()}`;
   }
 
   let runningBalance = 0;
@@ -260,14 +265,16 @@ export function EmployeeSalaryLedger({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Salary ledger</h2>
-        <button
-          type="button"
-          onClick={openCreateForm}
-          className="pillar-btn-primary inline-flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Record payment
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={openCreateForm}
+            className="pillar-btn-primary inline-flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Record payment
+          </button>
+        )}
       </div>
 
       {error && (
@@ -276,7 +283,7 @@ export function EmployeeSalaryLedger({
         </div>
       )}
 
-      {showForm && (
+      {isAdmin && showForm && (
         <form
           onSubmit={handleSubmit}
           className="pillar-card grid gap-4 p-5 sm:grid-cols-2"
@@ -489,7 +496,7 @@ export function EmployeeSalaryLedger({
                     {formatCurrency(entry.balance)}
                   </td>
                   <td className="px-4 py-3">
-                    {!entry.isCalculated && entry.id !== "earned" && entry.id !== "opening" && (
+                    {isAdmin && !entry.isCalculated && entry.id !== "earned" && entry.id !== "opening" && (
                       <div className="flex justify-end gap-1">
                         <button
                           type="button"

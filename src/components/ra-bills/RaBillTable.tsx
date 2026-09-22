@@ -10,9 +10,10 @@ import {
 interface RaBillTableProps {
   bills: RaBillWithProject[];
   summary: RaBillSummary;
+  isAdmin: boolean;
 }
 
-export function RaBillTable({ bills, summary }: RaBillTableProps) {
+export function RaBillTable({ bills, summary, isAdmin }: RaBillTableProps) {
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -80,12 +81,16 @@ export function RaBillTable({ bills, summary }: RaBillTableProps) {
                       </p>
                     </td>
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/ra-bills/${bill.id}/edit`}
-                        className="font-medium hover:text-[var(--primary)]"
-                      >
-                        {bill.bill_label}
-                      </Link>
+                      {isAdmin ? (
+                        <Link
+                          href={`/ra-bills/${bill.id}/edit`}
+                          className="font-medium hover:text-[var(--primary)]"
+                        >
+                          {bill.bill_label}
+                        </Link>
+                      ) : (
+                        <span className="font-medium">{bill.bill_label}</span>
+                      )}
                       {bill.contractor_name && (
                         <p className="text-xs text-[var(--muted)]">
                           {bill.contractor_name}

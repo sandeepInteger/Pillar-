@@ -11,11 +11,13 @@ import {
   Receipt,
   FileText,
   BarChart3,
+  Settings,
   LogOut,
   Layers,
   X,
 } from "lucide-react";
 import type { Profile } from "@/types/database";
+import { USER_ROLE_LABELS } from "@/types/database";
 import { signOut } from "@/lib/actions/employees";
 
 const menuSections = [
@@ -55,6 +57,12 @@ const menuSections = [
     label: "Reports",
     items: [
       { href: "/analytics", label: "Analytics", icon: BarChart3, active: true },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { href: "/settings", label: "Settings", icon: Settings, active: true },
     ],
   },
 ];
@@ -164,8 +172,8 @@ export function Sidebar({ profile, open, onClose }: SidebarProps) {
             <p className="truncate text-sm font-semibold">
               {profile?.full_name ?? "User"}
             </p>
-            <p className="text-xs capitalize text-[var(--muted)]">
-              {profile?.role ?? "engineer"}
+            <p className="text-xs text-[var(--muted)]">
+              {USER_ROLE_LABELS[profile?.role ?? "viewer"]}
             </p>
           </div>
           <form action={signOut}>

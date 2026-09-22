@@ -4,11 +4,13 @@ import { ProjectCard } from "@/components/projects/ProjectCard";
 import { getProjectBankInflowTotalsByProject } from "@/lib/queries/projectBankInflows";
 import { getProjects } from "@/lib/queries/projects";
 import { createClient } from "@/lib/supabase/server";
+import { getProfile } from "@/lib/queries/employees";
 
 export default async function ProjectsPage() {
-  const [projects, inflowTotals] = await Promise.all([
+  const [projects, inflowTotals, profile] = await Promise.all([
     getProjects(),
     getProjectBankInflowTotalsByProject(),
+    getProfile(),
   ]);
   const supabase = await createClient();
 
@@ -31,12 +33,14 @@ export default async function ProjectsPage() {
         title="Projects"
         subtitle={`${projects.length} project${projects.length !== 1 ? "s" : ""}`}
       >
-        <Link
-          href="/projects/new"
-          className="pillar-btn-primary w-full justify-center sm:w-auto"
-        >
-          Add Project
-        </Link>
+        {profile?.role === "admin" && (
+          <Link
+            href="/projects/new"
+            className="pillar-btn-primary w-full justify-center sm:w-auto"
+          >
+            Add Project
+          </Link>
+        )}
       </PageHeader>
 
       {projects.length === 0 ? (

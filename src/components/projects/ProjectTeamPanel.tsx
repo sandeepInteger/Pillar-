@@ -24,6 +24,7 @@ interface ProjectTeamPanelProps {
   assignments: ProjectAssignmentWithEmployee[];
   availableEmployees: Employee[];
   otherProjects: Project[];
+  isAdmin: boolean;
 }
 
 export function ProjectTeamPanel({
@@ -31,6 +32,7 @@ export function ProjectTeamPanel({
   assignments,
   availableEmployees,
   otherProjects,
+  isAdmin,
 }: ProjectTeamPanelProps) {
   const router = useRouter();
   const [selectedEmployee, setSelectedEmployee] = useState("");
@@ -109,6 +111,7 @@ export function ProjectTeamPanel({
       )}
 
       {/* Assign */}
+      {isAdmin && (
       <div className="rounded-xl border border-[var(--border)] bg-white p-5">
         <h3 className="mb-1 font-semibold">Add to project</h3>
         <p className="mb-4 text-xs text-[var(--muted)]">
@@ -139,9 +142,10 @@ export function ProjectTeamPanel({
           </button>
         </div>
       </div>
+      )}
 
       {/* Transfer labour */}
-      {transferOptions.length > 0 && (
+      {isAdmin && transferOptions.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <h3 className="mb-1 font-semibold text-amber-900">
             Transfer to another project
@@ -220,15 +224,17 @@ export function ProjectTeamPanel({
                     </span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemove(a.employee_id)}
-                  disabled={loading}
-                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-60"
-                >
-                  <UserMinus className="h-3.5 w-3.5" />
-                  Remove
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(a.employee_id)}
+                    disabled={loading}
+                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-60"
+                  >
+                    <UserMinus className="h-3.5 w-3.5" />
+                    Remove
+                  </button>
+                )}
               </li>
             ))}
           </ul>

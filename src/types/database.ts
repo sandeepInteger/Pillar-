@@ -1,4 +1,9 @@
-export type UserRole = "admin" | "engineer";
+export type UserRole = "admin" | "viewer";
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  admin: "Admin (full access)",
+  viewer: "Viewer (read only)",
+};
 
 export type EmployeeType =
   | "founder"

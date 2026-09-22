@@ -7,6 +7,7 @@ import {
   getWeekAttendance,
 } from "@/lib/queries/attendance";
 import { getActiveProjects } from "@/lib/queries/projects";
+import { getProfile } from "@/lib/queries/employees";
 import { getCurrentWeekStart } from "@/lib/utils/attendance";
 
 interface AttendancePageProps {
@@ -25,13 +26,14 @@ export default async function AttendancePage({
   const employeeType = params.type ?? "all";
   const projectId = params.project;
 
-  const [employees, records, projects] = await Promise.all([
+  const [employees, records, projects, profile] = await Promise.all([
     getActiveEmployeesForAttendance({
       type: employeeType,
       projectId,
     }),
     getWeekAttendance(weekStart, projectId),
     getActiveProjects(),
+    getProfile(),
   ]);
 
   const selectedProject = projects.find((p) => p.id === projectId);
@@ -65,6 +67,7 @@ export default async function AttendancePage({
         records={records}
         employeeType={employeeType}
         projectId={projectId}
+        isAdmin={profile?.role === "admin"}
       />
     </div>
   );

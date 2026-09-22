@@ -3,6 +3,7 @@ import type { AttendanceRecord, Employee, ShiftType } from "@/types/database";
 import { tracksAttendance } from "@/types/database";
 import { getWeekDates } from "@/lib/utils/attendance";
 import { sortEmployeesByHierarchy } from "@/lib/utils/employees";
+import { getMonthDateRange } from "@/lib/utils/salary";
 
 export async function getActiveEmployeesForAttendance(filters?: {
   type?: string;
@@ -63,6 +64,30 @@ export async function getRangeAttendance(
 
   if (error) {
     console.error("getRangeAttendance:", error.message);
+    return [];
+  }
+
+  return data ?? [];
+}
+
+/** All attendance records for one employee within a given YYYY-MM month, oldest first. */
+export async function getEmployeeMonthAttendance(
+  employeeId: string,
+  month: string
+): Promise<AttendanceRecord[]> {
+  const supabase = await createClient();
+  const { start, end } = getMonthDateRange(month);
+
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .select("*")
+    .eq("employee_id", employeeId)
+    .gte("attendance_date", start)
+    .lte("attendance_date", end)
+    .order("attendance_date", { ascending: true });
+
+  if (error) {
+    console.error("getEmployeeMonthAttendance:", error.message);
     return [];
   }
 

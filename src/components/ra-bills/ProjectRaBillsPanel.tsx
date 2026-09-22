@@ -11,12 +11,14 @@ interface ProjectRaBillsPanelProps {
   projectId: string;
   bills: RaBillWithProject[];
   summary: RaBillSummary;
+  isAdmin: boolean;
 }
 
 export function ProjectRaBillsPanel({
   projectId,
   bills,
   summary,
+  isAdmin,
 }: ProjectRaBillsPanelProps) {
   return (
     <section className="mt-8 space-y-4">
@@ -34,12 +36,14 @@ export function ProjectRaBillsPanel({
           >
             View all
           </Link>
-          <Link
-            href={`/ra-bills/new?project=${projectId}`}
-            className="pillar-btn-primary text-sm"
-          >
-            Add RA Bill
-          </Link>
+          {isAdmin && (
+            <Link
+              href={`/ra-bills/new?project=${projectId}`}
+              className="pillar-btn-primary text-sm"
+            >
+              Add RA Bill
+            </Link>
+          )}
         </div>
       </div>
 
@@ -81,12 +85,16 @@ export function ProjectRaBillsPanel({
                 className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-white px-4 py-3"
               >
                 <div>
-                  <Link
-                    href={`/ra-bills/${bill.id}/edit`}
-                    className="font-medium hover:text-[var(--primary)]"
-                  >
-                    {bill.bill_label}
-                  </Link>
+                  {isAdmin ? (
+                    <Link
+                      href={`/ra-bills/${bill.id}/edit`}
+                      className="font-medium hover:text-[var(--primary)]"
+                    >
+                      {bill.bill_label}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{bill.bill_label}</span>
+                  )}
                   <p className="text-xs text-[var(--muted)]">
                     {bill.contractor_name && (
                       <span className="block">{bill.contractor_name}</span>

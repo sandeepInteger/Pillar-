@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { RaBillForm } from "@/components/ra-bills/RaBillForm";
 import { getProjects } from "@/lib/queries/projects";
 import { getEmptyRaBillForm } from "@/lib/utils/raBills";
+import { requireAdmin } from "@/lib/utils/authGuard";
 
 interface NewRaBillPageProps {
   searchParams: Promise<{ project?: string }>;
@@ -10,6 +11,7 @@ interface NewRaBillPageProps {
 export default async function NewRaBillPage({
   searchParams,
 }: NewRaBillPageProps) {
+  await requireAdmin();
   const params = await searchParams;
   const projects = await getProjects({ status: "active" });
 

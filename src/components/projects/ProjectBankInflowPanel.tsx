@@ -18,6 +18,7 @@ interface ProjectBankInflowPanelProps {
   projectId: string;
   inflows: ProjectBankInflow[];
   summary: { total: number; thisMonth: number; entryCount: number };
+  isAdmin: boolean;
 }
 
 const labelClass = "mb-1 block text-sm font-medium text-gray-700";
@@ -28,6 +29,7 @@ export function ProjectBankInflowPanel({
   projectId,
   inflows,
   summary,
+  isAdmin,
 }: ProjectBankInflowPanelProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -130,6 +132,7 @@ export function ProjectBankInflowPanel({
         </div>
       )}
 
+      {isAdmin && (
       <form
         onSubmit={handleAdd}
         className="pillar-card grid gap-4 p-5 sm:grid-cols-2"
@@ -177,6 +180,7 @@ export function ProjectBankInflowPanel({
           </button>
         </div>
       </form>
+      )}
 
       {inflows.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-white">
@@ -202,13 +206,15 @@ export function ProjectBankInflowPanel({
                     {row.reference_note || "—"}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(row.id)}
-                      className="text-xs font-medium text-red-600 hover:underline"
-                    >
-                      Remove
-                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(row.id)}
+                        className="text-xs font-medium text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

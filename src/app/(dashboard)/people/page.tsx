@@ -33,7 +33,7 @@ export default async function PeoplePage({ searchParams }: PeoplePageProps) {
       <PageHeader
         title="People"
         subtitle={`${employees.length} employee${employees.length !== 1 ? "s" : ""}`}
-        showAddEmployee
+        showAddEmployee={profile?.role === "admin"}
       >
         <Suspense fallback={null}>
           <PeopleFilters />

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { EmployeeSalaryLedger } from "@/components/salary/EmployeeSalaryLedger";
 import { EmployeeSalaryDownload } from "@/components/salary/EmployeeSalaryDownload";
 import { getEmployeeSalaryDetail } from "@/lib/queries/salary";
+import { getProfile } from "@/lib/queries/employees";
 import { getCurrentMonth, formatMonthLabel } from "@/lib/utils/salary";
 import { EMPLOYEE_TYPE_LABELS } from "@/types/database";
 
@@ -27,7 +28,10 @@ export default async function EmployeeSalaryPage({
   const month = query.month ?? getCurrentMonth();
   const projectId = query.project;
 
-  const detail = await getEmployeeSalaryDetail(employeeId, month, projectId);
+  const [detail, profile] = await Promise.all([
+    getEmployeeSalaryDetail(employeeId, month, projectId),
+    getProfile(),
+  ]);
   if (!detail) notFound();
 
   const backParams = new URLSearchParams();
@@ -61,6 +65,7 @@ export default async function EmployeeSalaryPage({
         detail={detail}
         employeeType={query.type}
         projectId={projectId}
+        isAdmin={profile?.role === "admin"}
       />
     </div>
   );

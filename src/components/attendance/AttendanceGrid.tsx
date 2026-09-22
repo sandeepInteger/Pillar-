@@ -41,6 +41,7 @@ interface AttendanceGridProps {
   records: AttendanceRecord[];
   employeeType: string;
   projectId?: string;
+  isAdmin: boolean;
 }
 
 function buildInitialShifts(
@@ -123,6 +124,7 @@ export function AttendanceGrid({
   records,
   employeeType,
   projectId,
+  isAdmin,
 }: AttendanceGridProps) {
   const dates = useMemo(() => getWeekDates(weekStart), [weekStart]);
   const sortedEmployees = useMemo(
@@ -277,15 +279,17 @@ export function AttendanceGrid({
               </>
             )}
           </span>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={loading}
-            className="pillar-btn-primary w-full justify-center disabled:opacity-60 sm:w-auto"
-          >
-            <Save className="h-4 w-4" />
-            {loading ? "Saving..." : "Save Week"}
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={loading}
+              className="pillar-btn-primary w-full justify-center disabled:opacity-60 sm:w-auto"
+            >
+              <Save className="h-4 w-4" />
+              {loading ? "Saving..." : "Save Week"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -331,8 +335,9 @@ export function AttendanceGrid({
                       {dateLabel}
                     </div>
                     <select
-                      className="mt-1 w-full rounded border border-gray-200 px-1 py-0.5 text-[10px] font-normal"
+                      className="mt-1 w-full rounded border border-gray-200 px-1 py-0.5 text-[10px] font-normal disabled:opacity-50"
                       defaultValue=""
+                      disabled={!isAdmin}
                       onChange={(e) => {
                         if (e.target.value) {
                           setColumnShift(date, e.target.value as ShiftType);
@@ -393,7 +398,8 @@ export function AttendanceGrid({
                                 e.target.value as ShiftType
                               )
                             }
-                            className={`w-full rounded-lg border px-1 py-1.5 text-center text-xs font-semibold outline-none ${SHIFT_TYPE_COLORS[shift]}`}
+                            disabled={!isAdmin}
+                            className={`w-full rounded-lg border px-1 py-1.5 text-center text-xs font-semibold outline-none disabled:opacity-60 ${SHIFT_TYPE_COLORS[shift]}`}
                           >
                             {SHIFT_OPTIONS.map((s) => (
                               <option key={s} value={s}>
@@ -420,7 +426,8 @@ export function AttendanceGrid({
                                   .value as HourlyAttendanceCell["status"],
                               })
                             }
-                            className="w-full rounded border border-gray-200 px-1 py-0.5 text-[10px] font-semibold"
+                            disabled={!isAdmin}
+                            className="w-full rounded border border-gray-200 px-1 py-0.5 text-[10px] font-semibold disabled:opacity-60"
                           >
                             <option value="absent">Absent</option>
                             <option value="work">Hours</option>
@@ -438,7 +445,8 @@ export function AttendanceGrid({
                                   hours: Number.parseFloat(e.target.value) || 0,
                                 })
                               }
-                              className="w-full rounded-lg border border-emerald-200 bg-emerald-50 px-1 py-1 text-center text-xs font-semibold text-emerald-900"
+                              disabled={!isAdmin}
+                              className="w-full rounded-lg border border-emerald-200 bg-emerald-50 px-1 py-1 text-center text-xs font-semibold text-emerald-900 disabled:opacity-60"
                               title="Hours worked"
                             />
                           )}
