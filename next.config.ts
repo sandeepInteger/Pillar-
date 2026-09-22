@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
       "./node_modules/pdfkit/js/**/*",
       "./node_modules/@react-pdf/**/*",
     ],
+    "/api/salary-ledger/export/[employeeId]": [
+      "./node_modules/pdfkit/js/**/*",
+      "./node_modules/@react-pdf/**/*",
+    ],
   },
 };
 

@@ -30,6 +30,7 @@ import {
   paymentToFormData,
 } from "@/lib/utils/salary";
 import { formatDate } from "@/lib/utils/employees";
+import { SalaryLedgerPdfDownloadButton } from "@/components/salary/SalaryLedgerPdfDownloadButton";
 
 interface EmployeeSalaryLedgerProps {
   detail: EmployeeSalaryDetail;
@@ -265,16 +266,23 @@ export function EmployeeSalaryLedger({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Salary ledger</h2>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={openCreateForm}
-            className="pillar-btn-primary inline-flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Record payment
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <SalaryLedgerPdfDownloadButton
+            employeeId={detail.employee.id}
+            month={detail.month}
+            projectId={projectId}
+          />
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={openCreateForm}
+              className="pillar-btn-primary inline-flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Record payment
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (

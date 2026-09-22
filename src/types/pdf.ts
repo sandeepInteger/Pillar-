@@ -1,5 +1,9 @@
 import type { SalaryType } from "@/types/database";
 
+/** No dynamic company-settings table exists in this app; this is the single
+ * place that names the company shown on generated PDFs. */
+export const DEFAULT_COMPANY_NAME = "MDS Solution Company";
+
 export interface AttendanceDay {
   date: string;
   status: string;
@@ -37,4 +41,25 @@ export interface AttendancePDFData {
     overtimePay: number;
     netSalary: number;
   };
+}
+
+export interface SalaryLedgerRow {
+  date: string;
+  mode: string;
+  amount: string;
+  earned: string;
+}
+
+export interface SalaryLedgerPDFData {
+  companyName: string;
+
+  employeeName: string;
+  designation: string;
+  project: string;
+
+  reportingFrom: string;
+  reportingTo: string;
+
+  rows: SalaryLedgerRow[];
+  monthClosingBalance: string;
 }

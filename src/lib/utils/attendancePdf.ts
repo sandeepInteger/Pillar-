@@ -14,6 +14,7 @@ import {
   parseMonth,
 } from "@/lib/utils/salary";
 import type { AttendanceDay, AttendancePDFData } from "@/types/pdf";
+import { DEFAULT_COMPANY_NAME } from "@/types/pdf";
 
 const STATUS_LABELS: Record<ShiftType, string> = {
   absent: "Absent",
@@ -31,7 +32,7 @@ function statusForRecord(record: AttendanceRecord): string {
   return STATUS_LABELS[record.shift_type];
 }
 
-function formatDayDate(iso: string): string {
+export function formatDayDate(iso: string): string {
   return new Date(`${iso}T12:00:00`).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -131,7 +132,7 @@ export function buildAttendancePdfData(
   });
 
   return {
-    companyName: params.companyName ?? "MDS Solution Company",
+    companyName: params.companyName ?? DEFAULT_COMPANY_NAME,
     employeeName: employee.full_name,
     designation:
       employee.designation || EMPLOYEE_TYPE_LABELS[employee.employee_type],
