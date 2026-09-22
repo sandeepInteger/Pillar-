@@ -131,7 +131,7 @@ export function buildAttendancePdfData(
   });
 
   return {
-    companyName: params.companyName ?? "Pillar",
+    companyName: params.companyName ?? "MDS Solution Company",
     employeeName: employee.full_name,
     designation:
       employee.designation || EMPLOYEE_TYPE_LABELS[employee.employee_type],
