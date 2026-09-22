@@ -33,7 +33,8 @@ export async function updateSession(request: NextRequest) {
   const isPublicPage =
     isLoginPage ||
     request.nextUrl.pathname.startsWith("/forgot-password") ||
-    request.nextUrl.pathname.startsWith("/reset-password");
+    request.nextUrl.pathname.startsWith("/reset-password") ||
+    request.nextUrl.pathname.startsWith("/auth/confirm");
 
   if (!user && !isPublicPage) {
     const url = request.nextUrl.clone();
