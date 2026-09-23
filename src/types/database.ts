@@ -640,6 +640,65 @@ export interface MonthRaBillCashReceipt {
   billCount: number;
 }
 
+export type WorkType = "block_work" | "shuttering_work";
+
+export const WORK_TYPE_LABELS: Record<WorkType, string> = {
+  block_work: "Block Work",
+  shuttering_work: "Shuttering Work",
+};
+
+/** Add new work types here as they come up — mirror in a new migration's check constraint. */
+export const WORK_TYPE_DISPLAY_ORDER: WorkType[] = [
+  "block_work",
+  "shuttering_work",
+];
+
+export type WorkQuantityUnit = "nos" | "sqft" | "cum" | "rft";
+
+export const WORK_QUANTITY_UNIT_LABELS: Record<WorkQuantityUnit, string> = {
+  nos: "Nos",
+  sqft: "Sqft",
+  cum: "Cum",
+  rft: "Rft",
+};
+
+export interface WorkQuantityLog {
+  id: string;
+  project_id: string;
+  work_date: string;
+  work_type: WorkType;
+  quantity: number;
+  unit: WorkQuantityUnit;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkQuantityLogWithProject extends WorkQuantityLog {
+  projects: Pick<Project, "id" | "name" | "project_code">;
+}
+
+export interface WorkQuantityFormData {
+  project_id: string;
+  work_date: string;
+  work_type: WorkType;
+  quantity: string;
+  unit: WorkQuantityUnit;
+  notes: string;
+}
+
+export interface WorkQuantityTypeTotal {
+  workType: WorkType;
+  totalsByUnit: Partial<Record<WorkQuantityUnit, number>>;
+  entryCount: number;
+}
+
+export interface WorkQuantitySummary {
+  entryCount: number;
+  byType: WorkQuantityTypeTotal[];
+}
+
 export interface AnalyticsData {
   fromMonth: string;
   toMonth: string;

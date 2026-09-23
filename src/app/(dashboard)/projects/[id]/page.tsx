@@ -4,12 +4,14 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { ProjectBankInflowPanel } from "@/components/projects/ProjectBankInflowPanel";
 import { ProjectTeamPanel } from "@/components/projects/ProjectTeamPanel";
 import { ProjectRaBillsPanel } from "@/components/ra-bills/ProjectRaBillsPanel";
+import { ProjectWorkQuantityPanel } from "@/components/projects/ProjectWorkQuantityPanel";
 import {
   getProjectBankInflows,
   summarizeProjectInflows,
 } from "@/lib/queries/projectBankInflows";
 import { getProject, getProjects } from "@/lib/queries/projects";
 import { getRaBills, summarizeRaBills } from "@/lib/queries/raBills";
+import { getProjectWorkQuantityLogs } from "@/lib/queries/workQuantity";
 import { getEmployees, getProfile } from "@/lib/queries/employees";
 import {
   PROJECT_STATUS_COLORS,
@@ -26,13 +28,14 @@ export default async function ProjectDetailPage({
   params,
 }: ProjectDetailPageProps) {
   const { id } = await params;
-  const [project, allEmployees, allProjects, projectRaBills, bankInflows, profile] =
+  const [project, allEmployees, allProjects, projectRaBills, bankInflows, workQuantityLogs, profile] =
     await Promise.all([
       getProject(id),
       getEmployees({ status: "active" }),
       getProjects({ status: "active" }),
       getRaBills({ projectId: id }),
       getProjectBankInflows(id),
+      getProjectWorkQuantityLogs(id),
       getProfile(),
     ]);
   const isAdmin = profile?.role === "admin";
@@ -70,6 +73,12 @@ export default async function ProjectDetailPage({
           className="pillar-btn-secondary w-full justify-center sm:w-auto"
         >
           Bank inflow
+        </Link>
+        <Link
+          href={`/work-quantity?project=${id}`}
+          className="pillar-btn-secondary w-full justify-center sm:w-auto"
+        >
+          Work quantity
         </Link>
         {isAdmin && (
           <Link
@@ -131,6 +140,12 @@ export default async function ProjectDetailPage({
         projectId={id}
         inflows={bankInflows}
         summary={inflowSummary}
+        isAdmin={isAdmin}
+      />
+
+      <ProjectWorkQuantityPanel
+        projectId={id}
+        logs={workQuantityLogs}
         isAdmin={isAdmin}
       />
 

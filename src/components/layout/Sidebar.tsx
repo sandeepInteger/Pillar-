@@ -9,7 +9,7 @@ import {
   Clock,
   Banknote,
   Receipt,
-  FileText,
+  ClipboardList,
   BarChart3,
   Settings,
   LogOut,
@@ -44,13 +44,18 @@ const menuSections = [
         icon: Banknote,
         active: true,
       },
+      {
+        href: "/work-quantity",
+        label: "Work Quantity",
+        icon: ClipboardList,
+        active: true,
+      },
     ],
   },
   {
     label: "Commerce",
     items: [
       { href: "/ra-bills", label: "RA Bills", icon: Receipt, active: true },
-      { href: "#", label: "Invoices", icon: FileText, active: false },
     ],
   },
   {
