@@ -197,6 +197,11 @@ export function SalaryTable({
                           {row.slDays} SL used
                         </p>
                       )}
+                      {row.slEncashment > 0 && (
+                        <p className="text-emerald-700">
+                          +{row.unusedSlDays} unused SL paid
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums">
                       {row.grossAmount != null
@@ -261,8 +266,8 @@ export function SalaryTable({
 
       <p className="text-xs text-[var(--muted)]">
         Founder: fixed monthly (no attendance). Foreman & engineer: daily wage ×
-        (man-days + paid SL). Others: hourly × hours worked (no SL). Click a
-        name for the ledger.
+        (man-days + paid SL). Unused SL days are paid at the day rate. Others:
+        hourly × hours worked (no SL). Click a name for the ledger.
       </p>
     </div>
   );

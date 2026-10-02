@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { chunkIds, fetchAllRows } from "@/lib/supabase/fetchAll";
 import type { AttendanceRecord, Employee, ShiftType } from "@/types/database";
 import { tracksAttendance } from "@/types/database";
 import { getWeekDates } from "@/lib/utils/attendance";
@@ -46,28 +47,40 @@ export async function getActiveEmployeesForAttendance(filters?: {
 export async function getRangeAttendance(
   startDate: string,
   endDate: string,
-  projectId?: string
+  projectId?: string,
+  employeeIds?: string[]
 ): Promise<AttendanceRecord[]> {
   const supabase = await createClient();
+  if (employeeIds && employeeIds.length === 0) return [];
 
-  let query = supabase
-    .from("attendance_records")
-    .select("*")
-    .gte("attendance_date", startDate)
-    .lte("attendance_date", endDate);
+  // Paged: a multi-month range easily exceeds Supabase's 1000-row cap,
+  // which used to drop attendance silently and understate earnings.
+  async function fetchFor(ids?: string[]): Promise<AttendanceRecord[]> {
+    const { data, error } = await fetchAllRows<AttendanceRecord>((from, to) => {
+      let query = supabase
+        .from("attendance_records")
+        .select("*")
+        .gte("attendance_date", startDate)
+        .lte("attendance_date", endDate);
 
-  if (projectId) {
-    query = query.or(`project_id.eq.${projectId},project_id.is.null`);
+      if (projectId) {
+        query = query.or(`project_id.eq.${projectId},project_id.is.null`);
+      }
+      if (ids) query = query.in("employee_id", ids);
+
+      return query
+        .order("attendance_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to);
+    });
+
+    if (error) console.error("getRangeAttendance:", error);
+    return data;
   }
 
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("getRangeAttendance:", error.message);
-    return [];
-  }
-
-  return data ?? [];
+  if (!employeeIds) return fetchFor();
+  const pages = await Promise.all(chunkIds(employeeIds).map(fetchFor));
+  return pages.flat();
 }
 
 /** All attendance records for one employee within a given YYYY-MM month, oldest first. */

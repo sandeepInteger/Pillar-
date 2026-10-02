@@ -95,7 +95,10 @@ export async function assignEmployeeToProject(
         (onOtherProject.projects as { name?: string } | null)?.name ??
         "another project";
       return {
-        error: `${employee.full_name} is already on ${projectName}. Use Transfer to move labour/foreman.`,
+        error:
+          employee.employee_type === "founder"
+            ? `${employee.full_name} is already on ${projectName}. A founder's salary counts in one project only — use Transfer or remove them there first.`
+            : `${employee.full_name} is already on ${projectName}. Use Transfer to move labour/foreman.`,
       };
     }
   }

@@ -4,6 +4,7 @@ import type {
   SalaryLedgerEntry,
   SalaryPayment,
   SalaryPaymentFormData,
+  SalaryPaymentMode,
   SalaryRow,
   SalarySummary,
   SalaryType,
@@ -107,6 +108,47 @@ export function getPrimaryPayment(
   }
 
   return null;
+}
+
+export interface SavedPaymentOption {
+  value: string;
+  label: string;
+  isPrimary: boolean;
+}
+
+/** Employee's saved UPI IDs or bank accounts for the salary payment form */
+export function getSavedPaymentOptions(
+  employee: EmployeeWithRelations,
+  mode: SalaryPaymentMode
+): SavedPaymentOption[] {
+  if (mode === "cash") return [];
+
+  const options: SavedPaymentOption[] = [];
+  const seen = new Set<string>();
+  for (const method of employee.employee_payment_methods) {
+    if (method.method_type !== mode) continue;
+    const value =
+      mode === "upi"
+        ? (method.upi_id || method.upi_phone || "").trim()
+        : (method.account_number || "").trim();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+
+    const parts =
+      mode === "upi"
+        ? [value]
+        : [method.bank_name, value, method.ifsc_code].filter(Boolean);
+    const holder = method.account_holder_name
+      ? ` (${method.account_holder_name})`
+      : "";
+    options.push({
+      value,
+      label: `${parts.join(" · ")}${holder}${method.is_primary ? " · Primary" : ""}`,
+      isPrimary: method.is_primary,
+    });
+  }
+
+  return options.sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
 }
 
 export function formatPaymentDetails(payment: Pick<
@@ -282,18 +324,32 @@ export function computeGrossSalary(
     | "hourly_rate"
     | "monthly_salary"
     | "monthly_sl_days"
-  >,
-  attendance: SalaryAttendanceBreakdown
+  > & { start_date?: string | null },
+  attendance: SalaryAttendanceBreakdown,
+  /** YYYY-MM being calculated — no unused SL pay before the employee started */
+  month?: string
 ): {
   grossAmount: number | null;
   salaryDeduction: number;
   slAllowance: number;
+  /** SL days allowed this month but not taken */
+  unusedSlDays: number;
+  /** Pay for unused SL days, already included in grossAmount */
+  slEncashment: number;
   dailyRate: number | null;
   monthlySalary: number | null;
   salaryType: SalaryType;
 } {
   const salaryType = getEmployeeSalaryType(employee);
   const slAllowance = Number(employee.monthly_sl_days ?? 0);
+  const beforeStart =
+    month != null &&
+    employee.start_date != null &&
+    month < monthFromDate(employee.start_date);
+  const unusedSlDays = beforeStart
+    ? 0
+    : Math.max(0, slAllowance - attendance.slDays);
+  const noEncashment = { unusedSlDays: 0, slEncashment: 0 };
 
   if (salaryType === "hourly") {
     const hourlyRate =
@@ -303,6 +359,7 @@ export function computeGrossSalary(
         grossAmount: null,
         salaryDeduction: 0,
         slAllowance: 0,
+        ...noEncashment,
         dailyRate: null,
         monthlySalary: null,
         salaryType,
@@ -315,6 +372,7 @@ export function computeGrossSalary(
       grossAmount,
       salaryDeduction: 0,
       slAllowance: 0,
+      ...noEncashment,
       dailyRate: null,
       monthlySalary: null,
       salaryType,
@@ -329,6 +387,7 @@ export function computeGrossSalary(
         grossAmount: null,
         salaryDeduction: 0,
         slAllowance,
+        ...noEncashment,
         dailyRate: null,
         monthlySalary: null,
         salaryType,
@@ -340,6 +399,7 @@ export function computeGrossSalary(
         grossAmount: monthlySalary,
         salaryDeduction: 0,
         slAllowance: 0,
+        ...noEncashment,
         dailyRate: null,
         monthlySalary,
         salaryType,
@@ -350,15 +410,18 @@ export function computeGrossSalary(
     const excessSl = Math.max(0, attendance.slDays - slAllowance);
     const unpaidAbsent = attendance.absentDays + excessSl;
     const salaryDeduction = Math.round(unpaidAbsent * perDay * 100) / 100;
+    const slEncashment = Math.round(unusedSlDays * perDay * 100) / 100;
     const grossAmount = Math.max(
       0,
-      Math.round((monthlySalary - salaryDeduction) * 100) / 100
+      Math.round((monthlySalary - salaryDeduction + slEncashment) * 100) / 100
     );
 
     return {
       grossAmount,
       salaryDeduction,
       slAllowance,
+      unusedSlDays,
+      slEncashment,
       dailyRate: null,
       monthlySalary,
       salaryType,
@@ -372,6 +435,7 @@ export function computeGrossSalary(
       grossAmount: null,
       salaryDeduction: 0,
       slAllowance,
+      ...noEncashment,
       dailyRate: null,
       monthlySalary: null,
       salaryType,
@@ -380,8 +444,9 @@ export function computeGrossSalary(
 
   const paidSlDays = Math.min(attendance.slDays, slAllowance);
   const excessSl = Math.max(0, attendance.slDays - slAllowance);
+  const slEncashment = Math.round(unusedSlDays * dailyRate * 100) / 100;
   const grossAmount = Math.round(
-    (attendance.manDays + paidSlDays) * dailyRate * 100
+    ((attendance.manDays + paidSlDays) * dailyRate + slEncashment) * 100
   ) / 100;
   const salaryDeduction =
     excessSl > 0
@@ -392,6 +457,8 @@ export function computeGrossSalary(
     grossAmount,
     salaryDeduction,
     slAllowance,
+    unusedSlDays,
+    slEncashment,
     dailyRate,
     monthlySalary: null,
     salaryType,
@@ -475,7 +542,7 @@ export function computeOpeningBalance(
   for (const priorMonth of getMonthsInRange(startMonth, priorMonthEnd)) {
     const records = priorAttendanceByMonth.get(priorMonth) ?? [];
     const attendance = aggregateAttendanceForSalary(records);
-    const gross = computeGrossSalary(employee, attendance);
+    const gross = computeGrossSalary(employee, attendance, priorMonth);
     if (gross.grossAmount != null) totalEarned += gross.grossAmount;
   }
 
@@ -501,6 +568,11 @@ function buildEarnedLabel(
         `deduction ${formatCurrency(gross.salaryDeduction)} (${attendance.absentDays} unpaid absent)`
       );
     }
+    if (gross.slEncashment > 0) {
+      parts.push(
+        `+ ${formatCurrency(gross.slEncashment)} for ${gross.unusedSlDays} unused SL`
+      );
+    }
     return parts.join(" · ");
   }
 
@@ -510,6 +582,9 @@ function buildEarnedLabel(
       `Daily wage (${attendance.manDays} man-days`,
       paidSl > 0 ? `+ ${paidSl} SL` : "",
       `× ${formatCurrency(gross.dailyRate)})`,
+      gross.slEncashment > 0
+        ? `+ ${formatCurrency(gross.slEncashment)} for ${gross.unusedSlDays} unused SL`
+        : "",
     ].filter(Boolean);
     return parts.join(" ");
   }
@@ -934,10 +1009,11 @@ export function enrichSalaryRow(
   employee: EmployeeWithRelations,
   records: AttendanceSalaryRecord[],
   payments: SalaryPayment[],
-  openingBalance = 0
+  openingBalance = 0,
+  month?: string
 ): Omit<SalaryRow, "employee"> {
   const attendance = aggregateAttendanceForSalary(records);
-  const gross = computeGrossSalary(employee, attendance);
+  const gross = computeGrossSalary(employee, attendance, month);
   const totalPaidOut = Math.round(sumPaidOut(payments) * 100) / 100;
   const monthBalance =
     gross.grossAmount != null
@@ -964,6 +1040,8 @@ export function enrichSalaryRow(
     grossAmount: gross.grossAmount,
     salaryDeduction: gross.salaryDeduction,
     slAllowance: gross.slAllowance,
+    unusedSlDays: gross.unusedSlDays,
+    slEncashment: gross.slEncashment,
     totalPaidOut,
     openingBalance,
     monthBalance,

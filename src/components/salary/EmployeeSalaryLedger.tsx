@@ -27,6 +27,7 @@ import {
   formatPaymentDetails,
   getEmptySalaryPaymentForm,
   getPrimaryPayment,
+  getSavedPaymentOptions,
   paymentToFormData,
 } from "@/lib/utils/salary";
 import { formatDate } from "@/lib/utils/employees";
@@ -90,18 +91,34 @@ export function EmployeeSalaryLedger({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  const savedOptions = getSavedPaymentOptions(detail.employee, form.payment_mode);
+  const selectedSaved = savedOptions.some(
+    (o) => o.value === form.payment_reference
+  )
+    ? form.payment_reference
+    : "";
+
+  /** Primary (or first) saved UPI ID / account for the mode, else blank */
+  function defaultReference(mode: SalaryPaymentMode): string {
+    return getSavedPaymentOptions(detail.employee, mode)[0]?.value ?? "";
+  }
+
   function handleModeChange(mode: SalaryPaymentMode) {
     setForm((prev) => ({
       ...prev,
       payment_mode: mode,
       payment_app: mode === "upi" ? SALARY_PAYMENT_APP_OPTIONS[0] : "",
-      payment_reference: "",
+      payment_reference: defaultReference(mode),
     }));
   }
 
   function openCreateForm() {
     setEditingId(null);
-    setForm(getEmptySalaryPaymentForm());
+    const empty = getEmptySalaryPaymentForm();
+    setForm({
+      ...empty,
+      payment_reference: defaultReference(empty.payment_mode),
+    });
     setError(null);
     setShowForm(true);
   }
@@ -215,6 +232,7 @@ export function EmployeeSalaryLedger({
           {detail.slAllowance > 0 && (
             <p className="mt-1 text-xs text-[var(--muted)]">
               {detail.slAllowance} SL allowed/mo
+              {detail.unusedSlDays > 0 && ` · ${detail.unusedSlDays} unused`}
             </p>
           )}
         </div>
@@ -230,6 +248,11 @@ export function EmployeeSalaryLedger({
           {detail.salaryDeduction > 0 && (
             <p className="mt-1 text-xs text-amber-700">
               −{formatCurrency(detail.salaryDeduction)} deduction
+            </p>
+          )}
+          {detail.slEncashment > 0 && (
+            <p className="mt-1 text-xs text-emerald-700">
+              +{formatCurrency(detail.slEncashment)} unused SL
             </p>
           )}
         </div>
@@ -358,6 +381,30 @@ export function EmployeeSalaryLedger({
               ))}
             </select>
           </div>
+
+          {form.payment_mode !== "cash" && savedOptions.length > 0 && (
+            <div className="sm:col-span-2">
+              <label className={labelClass}>
+                {form.payment_mode === "upi"
+                  ? "Saved UPI of this person"
+                  : "Saved bank account of this person"}
+              </label>
+              <select
+                className={inputClass}
+                value={selectedSaved}
+                onChange={(e) =>
+                  updateField("payment_reference", e.target.value)
+                }
+              >
+                {savedOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+                <option value="">Other — enter manually</option>
+              </select>
+            </div>
+          )}
 
           {form.payment_mode === "upi" && (
             <>

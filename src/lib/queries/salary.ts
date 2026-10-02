@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getRangeAttendance } from "@/lib/queries/attendance";
+import { chunkIds, fetchAllRows } from "@/lib/supabase/fetchAll";
 import {
   getActiveEmployeesForSalary,
   getEmployee,
@@ -41,71 +42,55 @@ async function getEmployeesWithRelations(
   return map;
 }
 
-async function getPaymentsForMonth(
-  month: string,
+/** Salary payments in [start, end] (either bound optional), paged past the 1000-row cap */
+async function getPaymentsInRange(
+  range: { start?: string; endExclusive?: string; end?: string },
   employeeIds?: string[]
 ): Promise<Map<string, SalaryPayment[]>> {
-  const supabase = await createClient();
-  const { start, end } = getMonthDateRange(month);
-
-  let query = supabase
-    .from("salary_payments")
-    .select("*")
-    .gte("payment_date", start)
-    .lte("payment_date", end)
-    .order("payment_date", { ascending: true });
-
-  if (employeeIds && employeeIds.length > 0) {
-    query = query.in("employee_id", employeeIds);
-  }
-
-  const { data, error } = await query;
-  if (error) {
-    console.error("getPaymentsForMonth:", error.message);
-    return new Map();
-  }
-
   const map = new Map<string, SalaryPayment[]>();
-  for (const payment of data ?? []) {
+  if (employeeIds && employeeIds.length === 0) return map;
+  const supabase = await createClient();
+
+  async function fetchFor(ids?: string[]): Promise<SalaryPayment[]> {
+    const { data, error } = await fetchAllRows<SalaryPayment>((from, to) => {
+      let query = supabase.from("salary_payments").select("*");
+      if (range.start) query = query.gte("payment_date", range.start);
+      if (range.end) query = query.lte("payment_date", range.end);
+      if (range.endExclusive) query = query.lt("payment_date", range.endExclusive);
+      if (ids) query = query.in("employee_id", ids);
+      return query
+        .order("payment_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to);
+    });
+    if (error) console.error("getPaymentsInRange:", error);
+    return data;
+  }
+
+  const pages = employeeIds
+    ? await Promise.all(chunkIds(employeeIds).map(fetchFor))
+    : [await fetchFor()];
+
+  for (const payment of pages.flat()) {
     const list = map.get(payment.employee_id) ?? [];
-    list.push(payment as SalaryPayment);
+    list.push(payment);
     map.set(payment.employee_id, list);
+  }
+  for (const list of map.values()) {
+    list.sort((x, y) => x.payment_date.localeCompare(y.payment_date));
   }
 
   return map;
 }
 
-async function getPaymentsBeforeMonth(
-  month: string,
-  employeeIds?: string[]
-): Promise<Map<string, SalaryPayment[]>> {
-  const supabase = await createClient();
+function getPaymentsForMonth(month: string, employeeIds?: string[]) {
+  const { start, end } = getMonthDateRange(month);
+  return getPaymentsInRange({ start, end }, employeeIds);
+}
+
+function getPaymentsBeforeMonth(month: string, employeeIds?: string[]) {
   const { start } = getMonthDateRange(month);
-
-  let query = supabase
-    .from("salary_payments")
-    .select("*")
-    .lt("payment_date", start)
-    .order("payment_date", { ascending: true });
-
-  if (employeeIds && employeeIds.length > 0) {
-    query = query.in("employee_id", employeeIds);
-  }
-
-  const { data, error } = await query;
-  if (error) {
-    console.error("getPaymentsBeforeMonth:", error.message);
-    return new Map();
-  }
-
-  const map = new Map<string, SalaryPayment[]>();
-  for (const payment of data ?? []) {
-    const list = map.get(payment.employee_id) ?? [];
-    list.push(payment as SalaryPayment);
-    map.set(payment.employee_id, list);
-  }
-
-  return map;
+  return getPaymentsInRange({ endExclusive: start }, employeeIds);
 }
 
 function toSalaryRecord(record: {
@@ -166,9 +151,11 @@ export async function getMonthlySalary(filters: {
 
   const [records, priorRecords, relations, paymentsByEmployee, priorPaymentsByEmployee] =
     await Promise.all([
-      getRangeAttendance(start, end, filters.projectId),
+      getRangeAttendance(start, end, filters.projectId, employeeIds),
+      // Opening balance is employee-wide (payments are not per project),
+      // so prior earnings must include every project too.
       priorEnd >= "2020-01-01"
-        ? getRangeAttendance("2020-01-01", priorEnd, filters.projectId)
+        ? getRangeAttendance("2020-01-01", priorEnd, undefined, employeeIds)
         : Promise.resolve([]),
       getEmployeesWithRelations(employeeIds),
       getPaymentsForMonth(filters.month, employeeIds),
@@ -226,7 +213,13 @@ export async function getMonthlySalary(filters: {
       priorAttendanceByEmployee.get(employee.id) ?? new Map(),
       priorPaymentsByEmployee.get(employee.id) ?? []
     );
-    const stats = enrichSalaryRow(full, empRecords, payments, openingBalance);
+    const stats = enrichSalaryRow(
+      full,
+      empRecords,
+      payments,
+      openingBalance,
+      filters.month
+    );
 
     totalManDays += stats.manDays;
     if (stats.grossAmount != null) totalGross += stats.grossAmount;
@@ -281,9 +274,9 @@ export async function getEmployeeSalaryDetail(
 
   const [allRecords, priorRecords, paymentsMap, priorPaymentsMap] =
     await Promise.all([
-      getRangeAttendance(start, end, projectId),
+      getRangeAttendance(start, end, projectId, [employeeId]),
       priorEnd >= "2020-01-01"
-        ? getRangeAttendance("2020-01-01", priorEnd, projectId)
+        ? getRangeAttendance("2020-01-01", priorEnd, undefined, [employeeId])
         : Promise.resolve([]),
       getPaymentsForMonth(month, [employeeId]),
       getPaymentsBeforeMonth(month, [employeeId]),
@@ -322,8 +315,14 @@ export async function getEmployeeSalaryDetail(
   );
 
   const attendance = aggregateAttendanceForSalary(empRecords);
-  const gross = computeGrossSalary(employee, attendance);
-  const stats = enrichSalaryRow(employee, empRecords, payments, openingBalance);
+  const gross = computeGrossSalary(employee, attendance, month);
+  const stats = enrichSalaryRow(
+    employee,
+    empRecords,
+    payments,
+    openingBalance,
+    month
+  );
   const ledger = buildSalaryLedger(
     payments,
     employee,
@@ -343,6 +342,8 @@ export async function getEmployeeSalaryDetail(
     monthlySalary: gross.monthlySalary,
     salaryType: gross.salaryType,
     slAllowance: gross.slAllowance,
+    unusedSlDays: gross.unusedSlDays,
+    slEncashment: gross.slEncashment,
     salaryDeduction: gross.salaryDeduction,
     grossAmount: stats.grossAmount,
     totalPaidOut: stats.totalPaidOut,

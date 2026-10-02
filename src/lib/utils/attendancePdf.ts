@@ -96,7 +96,7 @@ export function buildAttendancePdfData(
     overtime_hours: r.overtime_hours,
   }));
   const attendance = aggregateAttendanceForSalary(salaryRecords);
-  const gross = computeGrossSalary(employee, attendance);
+  const gross = computeGrossSalary(employee, attendance, month);
 
   const halfDayUnits =
     records.filter((r) => r.shift_type === "half").length * 0.5;

@@ -115,8 +115,10 @@ export function ProjectTeamPanel({
       <div className="rounded-xl border border-[var(--border)] bg-white p-5">
         <h3 className="mb-1 font-semibold">Add to project</h3>
         <p className="mb-4 text-xs text-[var(--muted)]">
-          Engineers can work on multiple projects. Labour & foreman are on one
-          site at a time — use Transfer to move them.
+          Engineers can work on multiple projects. Labour, foreman & founder are
+          on one project at a time — use Transfer to move them. An unassigned
+          founder&apos;s salary shows under every project; assign them here to
+          count it in this project only.
         </p>
         <div className="flex flex-wrap gap-2">
           <select
@@ -151,8 +153,8 @@ export function ProjectTeamPanel({
             Transfer to another project
           </h3>
           <p className="mb-4 text-xs text-amber-800">
-            Move labour or foreman from this site to another (ends here, starts
-            there).
+            Move labour, foreman or founder from this site to another (ends here,
+            starts there).
           </p>
           <div className="flex flex-wrap gap-2">
             <select
@@ -218,6 +220,9 @@ export function ProjectTeamPanel({
                       a.employees.employee_type
                     ) && (
                       <span className="text-[var(--primary)]">Shared · multi-project</span>
+                    )}
+                    {a.employees.employee_type === "founder" && (
+                      <span className="text-[var(--primary)]">Salary counted here</span>
                     )}
                     <span className="text-[var(--muted)]">
                       Since {a.started_at}

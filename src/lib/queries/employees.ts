@@ -108,9 +108,29 @@ export async function getActiveEmployeesForSalary(filters?: {
     if (filters?.type && filters.type !== "all") {
       employees = employees.filter((e) => e.employee_type === filters.type);
     }
+    // Founders assigned to a project are charged to that project only;
+    // unassigned founders still show under every project.
     const founders = await fetchActiveFounders();
+    const founderIds = founders.map((f) => f.id);
+    const assignedFounderIds = new Set<string>();
+    if (founderIds.length > 0) {
+      const { data: founderAssignments, error: assignmentError } = await supabase
+        .from("project_assignments")
+        .select("employee_id")
+        .in("employee_id", founderIds)
+        .eq("is_active", true);
+      if (assignmentError) {
+        console.error("founder assignments:", assignmentError.message);
+      }
+      for (const row of founderAssignments ?? []) {
+        assignedFounderIds.add(row.employee_id as string);
+      }
+    }
+    const unassignedFounders = founders.filter(
+      (f) => !assignedFounderIds.has(f.id)
+    );
     const byId = new Map<string, Employee>();
-    for (const employee of [...employees, ...founders]) {
+    for (const employee of [...employees, ...unassignedFounders]) {
       byId.set(employee.id, employee);
     }
     return sortEmployeesByHierarchy(Array.from(byId.values()));

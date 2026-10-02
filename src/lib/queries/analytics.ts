@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetchAll";
 import type {
   AnalyticsData,
   EmployeeType,
@@ -30,6 +31,7 @@ interface EmployeeRow {
   hourly_rate: number | null;
   monthly_salary: number | null;
   monthly_sl_days: number | null;
+  start_date: string | null;
 }
 
 interface AttendanceRow {
@@ -132,20 +134,30 @@ export async function getAnalyticsData(
     supabase
       .from("employees")
       .select(
-        "id, employee_type, salary_type, daily_rate, hourly_rate, monthly_salary, monthly_sl_days"
+        "id, employee_type, salary_type, daily_rate, hourly_rate, monthly_salary, monthly_sl_days, start_date"
       ),
-    supabase
-      .from("attendance_records")
-      .select(
-        "employee_id, attendance_date, shift_type, day_units, hours_worked, overtime_hours"
-      )
-      .gte("attendance_date", start)
-      .lte("attendance_date", end),
-    supabase
-      .from("salary_payments")
-      .select("employee_id, payment_date, amount, payment_type")
-      .gte("payment_date", start)
-      .lte("payment_date", end),
+    fetchAllRows<AttendanceRow>((from, to) =>
+      supabase
+        .from("attendance_records")
+        .select(
+          "id, employee_id, attendance_date, shift_type, day_units, hours_worked, overtime_hours"
+        )
+        .gte("attendance_date", start)
+        .lte("attendance_date", end)
+        .order("attendance_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to)
+    ),
+    fetchAllRows<PaymentRow>((from, to) =>
+      supabase
+        .from("salary_payments")
+        .select("id, employee_id, payment_date, amount, payment_type")
+        .gte("payment_date", start)
+        .lte("payment_date", end)
+        .order("payment_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to)
+    ),
     supabase
       .from("ra_bills")
       .select(
@@ -162,8 +174,8 @@ export async function getAnalyticsData(
   ]);
 
   const employees = (employeesRes.data ?? []) as EmployeeRow[];
-  const attendance = (attendanceRes.data ?? []) as AttendanceRow[];
-  const payments = (paymentsRes.data ?? []) as PaymentRow[];
+  const attendance = attendanceRes.data;
+  const payments = paymentsRes.data;
 
   interface RaBillAnalyticsRow {
     confirmed_date: string;
@@ -338,8 +350,10 @@ export async function getAnalyticsData(
           hourly_rate: employee.hourly_rate ?? null,
           monthly_salary: employee.monthly_salary,
           monthly_sl_days: Number(employee.monthly_sl_days ?? 0),
+          start_date: employee.start_date,
         },
-        breakdown
+        breakdown,
+        month
       );
       if (gross.grossAmount != null) {
         stats.grossEarned =

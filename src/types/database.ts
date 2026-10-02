@@ -144,6 +144,10 @@ export interface SalaryRow {
   grossAmount: number | null;
   salaryDeduction: number;
   slAllowance: number;
+  /** SL days allowed but not taken this month */
+  unusedSlDays: number;
+  /** Pay for unused SL days, included in grossAmount */
+  slEncashment: number;
   totalPaidOut: number;
   openingBalance: number;
   monthBalance: number | null;
@@ -218,6 +222,8 @@ export interface EmployeeSalaryDetail {
   monthlySalary: number | null;
   salaryType: SalaryType;
   slAllowance: number;
+  unusedSlDays: number;
+  slEncashment: number;
   salaryDeduction: number;
   grossAmount: number | null;
   totalPaidOut: number;
@@ -242,10 +248,11 @@ export const SALARY_PAYMENT_MODE_LABELS: Record<SalaryPaymentMode, string> = {
   cash: "Cash",
 };
 
+/** First entry is the default UPI app on new payments */
 export const SALARY_PAYMENT_APP_OPTIONS = [
+  "Paytm",
   "PhonePe",
   "Google Pay",
-  "Paytm",
   "BHIM",
   "Amazon Pay",
   "Other",
@@ -572,11 +579,14 @@ export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
   completed: "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
 };
 
-/** Engineers/staff/founder can be on multiple projects; labour/foreman typically one site */
+/**
+ * Engineers/staff can be on multiple projects; labour/foreman typically one site.
+ * Founders are one project at a time so their salary is counted once
+ * (an unassigned founder shows under every project).
+ */
 export const MULTI_PROJECT_TYPES: EmployeeType[] = [
   "engineer",
   "staff",
-  "founder",
 ];
 
 export interface MonthWorkStats {
