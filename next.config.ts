@@ -9,16 +9,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // pdfkit (used by @react-pdf/renderer for the attendance PDF) loads its
-  // standard font files via a dynamic subpath import that Next's output
+  // pdfkit (used by @react-pdf/renderer for the employee statement PDF) loads
+  // its standard font files via a dynamic subpath import that Next's output
   // file tracing can't follow, so they get dropped from the serverless
-  // bundle unless explicitly included here.
+  // bundle unless explicitly included here. Add any new PDF route below.
   outputFileTracingIncludes: {
-    "/api/attendance/export/[employeeId]": [
-      "./node_modules/pdfkit/js/**/*",
-      "./node_modules/@react-pdf/**/*",
-    ],
-    "/api/salary-ledger/export/[employeeId]": [
+    "/api/employee-statement/[employeeId]": [
       "./node_modules/pdfkit/js/**/*",
       "./node_modules/@react-pdf/**/*",
     ],
