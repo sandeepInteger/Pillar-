@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createClient } from "@/lib/supabase/server";
+import { getEmployeeMonthAttendance } from "@/lib/queries/attendance";
 import { getEmployeeSalaryDetail } from "@/lib/queries/salary";
 import { getEmployeeActiveProject } from "@/lib/queries/projects";
 import { getCurrentMonth } from "@/lib/utils/salary";
-import { buildSalaryLedgerPdfData } from "@/lib/utils/salaryLedgerPdf";
-import { SalaryLedgerPDF } from "@/components/pdf/SalaryLedgerPDF";
+import { buildEmployeeStatementPdfData } from "@/lib/utils/employeeStatementPdf";
+import { EmployeeStatementPDF } from "@/components/pdf/EmployeeStatementPDF";
 
+/** One-page monthly statement: attendance, total payable and salary ledger */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ employeeId: string }> }
@@ -24,8 +26,9 @@ export async function GET(
   const month = searchParams.get("month") ?? getCurrentMonth();
   const projectId = searchParams.get("project") ?? undefined;
 
-  const [detail, project] = await Promise.all([
+  const [detail, records, project] = await Promise.all([
     getEmployeeSalaryDetail(employeeId, month, projectId),
+    getEmployeeMonthAttendance(employeeId, month),
     getEmployeeActiveProject(employeeId),
   ]);
 
@@ -33,12 +36,18 @@ export async function GET(
     return NextResponse.json({ error: "Employee not found" }, { status: 404 });
   }
 
-  const data = buildSalaryLedgerPdfData({
+  // Keep the attendance grid on the same project scope as the salary figures
+  const scopedRecords = projectId
+    ? records.filter((r) => r.project_id === projectId || r.project_id == null)
+    : records;
+
+  const data = buildEmployeeStatementPdfData({
     detail,
+    records: scopedRecords,
     projectName: project?.name ?? null,
   });
 
-  const buffer = await renderToBuffer(SalaryLedgerPDF({ data }));
+  const buffer = await renderToBuffer(EmployeeStatementPDF({ data }));
 
   const nameSlug = detail.employee.full_name
     .trim()
@@ -49,7 +58,7 @@ export async function GET(
     "en-IN",
     { month: "long" }
   );
-  const filename = `${nameSlug}-Salary-Ledger-${monthName}-${year}.pdf`;
+  const filename = `${nameSlug}-Statement-${monthName}-${year}.pdf`;
 
   return new NextResponse(new Uint8Array(buffer), {
     headers: {

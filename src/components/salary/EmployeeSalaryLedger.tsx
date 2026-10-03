@@ -31,7 +31,7 @@ import {
   paymentToFormData,
 } from "@/lib/utils/salary";
 import { formatDate } from "@/lib/utils/employees";
-import { SalaryLedgerPdfDownloadButton } from "@/components/salary/SalaryLedgerPdfDownloadButton";
+import { EmployeeStatementPdfButton } from "@/components/people/EmployeeStatementPdfButton";
 
 interface EmployeeSalaryLedgerProps {
   detail: EmployeeSalaryDetail;
@@ -290,7 +290,7 @@ export function EmployeeSalaryLedger({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Salary ledger</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <SalaryLedgerPdfDownloadButton
+          <EmployeeStatementPdfButton
             employeeId={detail.employee.id}
             month={detail.month}
             projectId={projectId}

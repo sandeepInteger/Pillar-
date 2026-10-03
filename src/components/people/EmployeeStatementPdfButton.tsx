@@ -2,21 +2,22 @@
 
 import { Download } from "lucide-react";
 
-interface SalaryLedgerPdfDownloadButtonProps {
+interface EmployeeStatementPdfButtonProps {
   employeeId: string;
   month: string;
   projectId?: string;
 }
 
-export function SalaryLedgerPdfDownloadButton({
+/** Downloads the single monthly statement (attendance + payable + salary ledger) */
+export function EmployeeStatementPdfButton({
   employeeId,
   month,
   projectId,
-}: SalaryLedgerPdfDownloadButtonProps) {
+}: EmployeeStatementPdfButtonProps) {
   function handleDownload() {
     const params = new URLSearchParams({ month });
     if (projectId) params.set("project", projectId);
-    window.location.href = `/api/salary-ledger/export/${employeeId}?${params.toString()}`;
+    window.location.href = `/api/employee-statement/${employeeId}?${params.toString()}`;
   }
 
   return (

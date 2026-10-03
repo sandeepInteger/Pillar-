@@ -8,7 +8,7 @@ import {
   formatCurrency,
   parseMonth,
 } from "@/lib/utils/salary";
-import { AttendancePdfDownloadButton } from "@/components/people/AttendancePdfDownloadButton";
+import { EmployeeStatementPdfButton } from "@/components/people/EmployeeStatementPdfButton";
 
 const STATUS_BADGE_COLORS: Record<ShiftType, string> = {
   absent: "bg-red-50 text-red-600",
@@ -75,7 +75,7 @@ export function PersonAttendanceSection({
           <CalendarDays className="h-5 w-5 text-[var(--primary)]" />
           Attendance
         </h2>
-        <AttendancePdfDownloadButton employeeId={employeeId} month={month} />
+        <EmployeeStatementPdfButton employeeId={employeeId} month={month} />
       </div>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[var(--background)] px-4 py-2.5">
