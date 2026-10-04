@@ -138,11 +138,15 @@ export function buildEmployeeStatementPdfData(
   }
   summary.overtimeHours = round2(summary.overtimeHours);
 
-  const columns = [
-    { label: "1 - 10", days: days.slice(0, 10) },
-    { label: "11 - 20", days: days.slice(10, 20) },
-    { label: `21 - ${lastDay}`, days: days.slice(20) },
-  ];
+  // 5 columns of 6 days; the last runs to month end (25 - 28/29/30/31)
+  const columns = [0, 6, 12, 18, 24].map((start, i, starts) => {
+    const isLast = i === starts.length - 1;
+    const slice = isLast ? days.slice(start) : days.slice(start, start + 6);
+    return {
+      label: `${start + 1} - ${isLast ? lastDay : start + 6}`,
+      days: slice,
+    };
+  });
 
   // --- Total payable (rows add up to the ledger's gross) --------------------
   const attendance = aggregateAttendanceForSalary(

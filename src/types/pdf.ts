@@ -1,6 +1,6 @@
 /** No dynamic company-settings table exists in this app; this is the single
  * place that names the company shown on generated PDFs. */
-export const DEFAULT_COMPANY_NAME = "MDS Solution Company";
+export const DEFAULT_COMPANY_NAME = "SANDEEP KUMAR YADAV";
 
 /** One calendar day in the attendance grid: P / A / H / L or "-" when not marked */
 export interface StatementDay {
@@ -47,7 +47,7 @@ export interface EmployeeStatementPDFData {
     overtimeHours: number;
   };
 
-  /** Days 1-10, 11-20, 21-end of month (28 / 29 / 30 / 31) */
+  /** 5 columns of 6 days: 1-6 ... 25-end of month (28 / 29 / 30 / 31) */
   columns: { label: string; days: StatementDay[] }[];
 
   payable: {

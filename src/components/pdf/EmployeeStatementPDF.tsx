@@ -6,49 +6,48 @@ const BORDER = "1pt solid #cfcfcf";
 const HAIRLINE = "0.5pt solid #eaeaea";
 
 const styles = StyleSheet.create({
-  section: { marginBottom: 12 },
+  section: { marginBottom: 8 },
 
   summaryTable: { flexDirection: "row", border: BORDER },
   summaryCell: {
     flex: 1,
     borderRight: BORDER,
-    paddingVertical: 5,
+    paddingVertical: 3,
     alignItems: "center",
   },
-  summaryCellLast: { flex: 1, paddingVertical: 5, alignItems: "center" },
+  summaryCellLast: { flex: 1, paddingVertical: 3, alignItems: "center" },
   summaryLabel: {
-    fontSize: 6.5,
+    fontSize: 5.8,
     color: "#666",
-    marginBottom: 2,
+    marginBottom: 1,
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
-  summaryValue: { fontSize: 11, fontFamily: "Helvetica-Bold" },
+  summaryValue: { fontSize: 9.5, fontFamily: "Helvetica-Bold" },
 
   gridRow: { flexDirection: "row" },
   gridCol: { flex: 1, border: BORDER },
-  gridGap: { width: 8 },
+  gridGap: { width: 5 },
   gridTitle: {
     backgroundColor: "#f0f0f0",
-    paddingVertical: 3,
-    fontSize: 7.5,
+    paddingVertical: 2,
+    fontSize: 6.8,
     fontFamily: "Helvetica-Bold",
     textAlign: "center",
     borderBottom: BORDER,
   },
   gridHead: { flexDirection: "row", borderBottom: "1pt solid #999" },
   gridLine: { flexDirection: "row", borderBottom: HAIRLINE },
-  gDate: { width: "46%", fontSize: 7.5, paddingVertical: 2, paddingHorizontal: 4 },
-  gStatus: { width: "22%", fontSize: 7.5, paddingVertical: 2, textAlign: "center" },
-  gOt: { width: "32%", fontSize: 7.5, paddingVertical: 2, paddingHorizontal: 4, textAlign: "right" },
+  gDate: { width: "44%", fontSize: 6.6, paddingVertical: 1.5, paddingHorizontal: 3 },
+  gStatus: { width: "20%", fontSize: 6.6, paddingVertical: 1.5, textAlign: "center" },
+  gOt: { width: "36%", fontSize: 6.6, paddingVertical: 1.5, paddingHorizontal: 3, textAlign: "right" },
   gHeadText: { fontFamily: "Helvetica-Bold", color: "#555" },
   absent: { color: "#b42318", fontFamily: "Helvetica-Bold" },
-  legend: { fontSize: 6.8, color: "#777", marginTop: 3, textAlign: "center" },
 
   table: { border: BORDER },
   headRow: { flexDirection: "row", backgroundColor: "#f0f0f0", borderBottom: "1pt solid #999" },
   row: { flexDirection: "row", borderBottom: HAIRLINE },
-  cell: { fontSize: 8, paddingVertical: 3, paddingHorizontal: 5 },
+  cell: { fontSize: 7, paddingVertical: 2, paddingHorizontal: 5 },
   headCell: { fontFamily: "Helvetica-Bold", color: "#444" },
   right: { textAlign: "right" },
 
@@ -66,28 +65,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     borderTop: "1pt solid #333",
-    paddingVertical: 4,
+    paddingVertical: 3,
     paddingHorizontal: 5,
-    fontSize: 9.5,
+    fontSize: 8,
     fontFamily: "Helvetica-Bold",
   },
 
-  balanceBox: { marginTop: 8, border: "1pt solid #333" },
+  balanceBox: { marginTop: 5, border: "1pt solid #333" },
   balanceLine: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 3,
+    paddingVertical: 2,
     paddingHorizontal: 8,
-    fontSize: 8.5,
+    fontSize: 7.5,
   },
   balanceClosing: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 8,
     backgroundColor: "#f0f0f0",
     borderTop: "1pt solid #333",
-    fontSize: 10.5,
+    fontSize: 9,
     fontFamily: "Helvetica-Bold",
   },
 });
@@ -111,7 +110,7 @@ function DayColumn({ label, days }: { label: string; days: StatementDay[] }) {
       <Text style={styles.gridTitle}>{label}</Text>
       <View style={styles.gridHead}>
         <Text style={[styles.gDate, styles.gHeadText]}>Date</Text>
-        <Text style={[styles.gStatus, styles.gHeadText]}>A / P</Text>
+        <Text style={[styles.gStatus, styles.gHeadText]}>A/P</Text>
         <Text style={[styles.gOt, styles.gHeadText]}>OT</Text>
       </View>
       {days.map((d) => (
@@ -177,10 +176,6 @@ export function EmployeeStatementPDF({ data }: { data: EmployeeStatementPDFData 
                   </View>
                 ))}
               </View>
-              <Text style={styles.legend}>
-                P = Present · A = Absent · H = Half day · L = Leave (SL) · - = Not marked · OT = overtime hours
-                {summary.notMarked > 0 ? ` · ${summary.notMarked} day(s) not marked` : ""}
-              </Text>
             </View>
           </>
         )}
