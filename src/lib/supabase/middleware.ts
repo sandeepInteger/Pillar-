@@ -32,13 +32,15 @@ export async function updateSession(request: NextRequest) {
   const isLoginPage = request.nextUrl.pathname.startsWith("/login");
   const isPublicPage =
     isLoginPage ||
+    request.nextUrl.pathname.startsWith("/welcome") ||
     request.nextUrl.pathname.startsWith("/forgot-password") ||
     request.nextUrl.pathname.startsWith("/reset-password") ||
     request.nextUrl.pathname.startsWith("/auth/confirm");
 
   if (!user && !isPublicPage) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    // Visitors to the site root see the landing page; deep links go to login
+    url.pathname = request.nextUrl.pathname === "/" ? "/welcome" : "/login";
     return NextResponse.redirect(url);
   }
 
