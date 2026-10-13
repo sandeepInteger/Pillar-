@@ -11,6 +11,7 @@ import type {
   SalaryPaymentType,
 } from "@/types/database";
 import {
+  isFounderFixedSalary,
   SALARY_PAYMENT_APP_OPTIONS,
   SALARY_PAYMENT_MODE_LABELS,
   SALARY_PAYMENT_TYPE_LABELS,
@@ -32,6 +33,7 @@ import {
 } from "@/lib/utils/salary";
 import { formatDate } from "@/lib/utils/employees";
 import { EmployeeStatementPdfButton } from "@/components/people/EmployeeStatementPdfButton";
+import { MonthSlOverrideControl } from "@/components/salary/MonthSlOverrideControl";
 
 interface EmployeeSalaryLedgerProps {
   detail: EmployeeSalaryDetail;
@@ -229,11 +231,16 @@ export function EmployeeSalaryLedger({
           <p className="mt-1 text-2xl font-bold">
             {detail.slDays} / {detail.absentDays}
           </p>
-          {detail.slAllowance > 0 && (
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              {detail.slAllowance} SL allowed/mo
-              {detail.unusedSlDays > 0 && ` · ${detail.unusedSlDays} unused`}
-            </p>
+          {detail.slOverride === 0 ? (
+            <p className="mt-1 text-xs text-amber-700">No SL this month</p>
+          ) : (
+            detail.slAllowance > 0 && (
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                {detail.slAllowance} SL allowed
+                {detail.slOverride != null ? " (custom this month)" : "/mo"}
+                {detail.unusedSlDays > 0 && ` · ${detail.unusedSlDays} unused`}
+              </p>
+            )
           )}
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-white p-4">
@@ -280,6 +287,18 @@ export function EmployeeSalaryLedger({
           )}
         </div>
       </div>
+
+      {isAdmin &&
+        detail.salaryType !== "hourly" &&
+        !isFounderFixedSalary(detail.employee.employee_type) && (
+          <MonthSlOverrideControl
+            key={detail.month}
+            employeeId={detail.employee.id}
+            month={detail.month}
+            defaultSlDays={Number(detail.employee.monthly_sl_days ?? 0)}
+            slOverride={detail.slOverride}
+          />
+        )}
 
       {getPrimaryPayment(detail.employee) && (
         <p className="text-sm text-[var(--muted)]">

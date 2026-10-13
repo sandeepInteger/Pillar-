@@ -129,8 +129,14 @@ export async function getAnalyticsData(
 
   const supabase = await createClient();
 
-  const [employeesRes, attendanceRes, paymentsRes, raBillsRes, raBillBankRes] =
-    await Promise.all([
+  const [
+    employeesRes,
+    attendanceRes,
+    paymentsRes,
+    raBillsRes,
+    raBillBankRes,
+    slOverridesRes,
+  ] = await Promise.all([
     supabase
       .from("employees")
       .select(
@@ -171,11 +177,28 @@ export async function getAnalyticsData(
       .not("bank_received_date", "is", null)
       .gte("bank_received_date", start)
       .lte("bank_received_date", end),
+    fetchAllRows<{ employee_id: string; month: string; sl_days: number }>(
+      (from, to) =>
+        supabase
+          .from("employee_monthly_sl_overrides")
+          .select("employee_id, month, sl_days")
+          .gte("month", fromMonth)
+          .lte("month", toMonth)
+          .order("month", { ascending: true })
+          .order("employee_id", { ascending: true })
+          .range(from, to)
+    ),
   ]);
 
   const employees = (employeesRes.data ?? []) as EmployeeRow[];
   const attendance = attendanceRes.data;
   const payments = paymentsRes.data;
+  const slOverrideByEmployeeMonth = new Map<string, number>(
+    slOverridesRes.data.map((row) => [
+      `${row.employee_id}:${row.month}`,
+      Number(row.sl_days),
+    ])
+  );
 
   interface RaBillAnalyticsRow {
     confirmed_date: string;
@@ -353,7 +376,8 @@ export async function getAnalyticsData(
           start_date: employee.start_date,
         },
         breakdown,
-        month
+        month,
+        slOverrideByEmployeeMonth.get(empKey)
       );
       if (gross.grossAmount != null) {
         stats.grossEarned =

@@ -18,7 +18,7 @@ import {
   PROJECT_STATUS_LABELS,
 } from "@/types/database";
 import { formatProjectDate } from "@/lib/utils/projects";
-import { MapPin, Calendar, Pencil } from "lucide-react";
+import { MapPin, Calendar, Download, Pencil } from "lucide-react";
 
 interface ProjectDetailPageProps {
   params: Promise<{ id: string }>;
@@ -74,6 +74,14 @@ export default async function ProjectDetailPage({
         >
           Bank inflow
         </Link>
+        <a
+          href={`/api/projects/${id}/bank-inflows`}
+          download
+          className="pillar-btn-secondary w-full justify-center gap-2 sm:w-auto"
+        >
+          <Download className="h-4 w-4" />
+          Bank inflow PDF
+        </a>
         <Link
           href={`/work-quantity?project=${id}`}
           className="pillar-btn-secondary w-full justify-center sm:w-auto"

@@ -83,6 +83,43 @@ async function getPaymentsInRange(
   return map;
 }
 
+/** employee → (month → SL override) for the given employees, all months */
+export async function getSlOverrides(
+  employeeIds: string[]
+): Promise<Map<string, Map<string, number>>> {
+  const map = new Map<string, Map<string, number>>();
+  if (employeeIds.length === 0) return map;
+  const supabase = await createClient();
+
+  const pages = await Promise.all(
+    chunkIds(employeeIds).map(async (ids) => {
+      const { data, error } = await fetchAllRows<{
+        employee_id: string;
+        month: string;
+        sl_days: number;
+      }>((from, to) =>
+        supabase
+          .from("employee_monthly_sl_overrides")
+          .select("employee_id, month, sl_days")
+          .in("employee_id", ids)
+          .order("month", { ascending: true })
+          .order("employee_id", { ascending: true })
+          .range(from, to)
+      );
+      if (error) console.error("getSlOverrides:", error);
+      return data;
+    })
+  );
+
+  for (const row of pages.flat()) {
+    const byMonth = map.get(row.employee_id) ?? new Map<string, number>();
+    byMonth.set(row.month, Number(row.sl_days));
+    map.set(row.employee_id, byMonth);
+  }
+
+  return map;
+}
+
 function getPaymentsForMonth(month: string, employeeIds?: string[]) {
   const { start, end } = getMonthDateRange(month);
   return getPaymentsInRange({ start, end }, employeeIds);
@@ -149,8 +186,14 @@ export async function getMonthlySalary(filters: {
   const employeeIds = employees.map((e) => e.id);
   const priorEnd = dayBefore(start);
 
-  const [records, priorRecords, relations, paymentsByEmployee, priorPaymentsByEmployee] =
-    await Promise.all([
+  const [
+    records,
+    priorRecords,
+    relations,
+    paymentsByEmployee,
+    priorPaymentsByEmployee,
+    slOverridesByEmployee,
+  ] = await Promise.all([
       getRangeAttendance(start, end, filters.projectId, employeeIds),
       // Opening balance is employee-wide (payments are not per project),
       // so prior earnings must include every project too.
@@ -160,6 +203,7 @@ export async function getMonthlySalary(filters: {
       getEmployeesWithRelations(employeeIds),
       getPaymentsForMonth(filters.month, employeeIds),
       getPaymentsBeforeMonth(filters.month, employeeIds),
+      getSlOverrides(employeeIds),
     ]);
 
   const recordsByEmployee = new Map<string, AttendanceSalaryRecord[]>();
@@ -207,18 +251,21 @@ export async function getMonthlySalary(filters: {
       } as EmployeeWithRelations);
     const empRecords = recordsByEmployee.get(employee.id) ?? [];
     const payments = paymentsByEmployee.get(employee.id) ?? [];
+    const slOverrides = slOverridesByEmployee.get(employee.id);
     const openingBalance = computeOpeningBalance(
       full,
       filters.month,
       priorAttendanceByEmployee.get(employee.id) ?? new Map(),
-      priorPaymentsByEmployee.get(employee.id) ?? []
+      priorPaymentsByEmployee.get(employee.id) ?? [],
+      slOverrides
     );
     const stats = enrichSalaryRow(
       full,
       empRecords,
       payments,
       openingBalance,
-      filters.month
+      filters.month,
+      slOverrides?.get(filters.month)
     );
 
     totalManDays += stats.manDays;
@@ -272,7 +319,7 @@ export async function getEmployeeSalaryDetail(
   const { start, end } = getMonthDateRange(month);
   const priorEnd = dayBefore(start);
 
-  const [allRecords, priorRecords, paymentsMap, priorPaymentsMap] =
+  const [allRecords, priorRecords, paymentsMap, priorPaymentsMap, slOverridesMap] =
     await Promise.all([
       getRangeAttendance(start, end, projectId, [employeeId]),
       priorEnd >= "2020-01-01"
@@ -280,6 +327,7 @@ export async function getEmployeeSalaryDetail(
         : Promise.resolve([]),
       getPaymentsForMonth(month, [employeeId]),
       getPaymentsBeforeMonth(month, [employeeId]),
+      getSlOverrides([employeeId]),
     ]);
 
   const empRecords = allRecords
@@ -307,21 +355,25 @@ export async function getEmployeeSalaryDetail(
 
   const payments = paymentsMap.get(employeeId) ?? [];
   const priorPayments = priorPaymentsMap.get(employeeId) ?? [];
+  const slOverrides = slOverridesMap.get(employeeId);
+  const slOverride = slOverrides?.get(month) ?? null;
   const openingBalance = computeOpeningBalance(
     employee,
     month,
     priorAttendanceByMonth,
-    priorPayments
+    priorPayments,
+    slOverrides
   );
 
   const attendance = aggregateAttendanceForSalary(empRecords);
-  const gross = computeGrossSalary(employee, attendance, month);
+  const gross = computeGrossSalary(employee, attendance, month, slOverride);
   const stats = enrichSalaryRow(
     employee,
     empRecords,
     payments,
     openingBalance,
-    month
+    month,
+    slOverride
   );
   const ledger = buildSalaryLedger(
     payments,
@@ -342,6 +394,7 @@ export async function getEmployeeSalaryDetail(
     monthlySalary: gross.monthlySalary,
     salaryType: gross.salaryType,
     slAllowance: gross.slAllowance,
+    slOverride,
     unusedSlDays: gross.unusedSlDays,
     slEncashment: gross.slEncashment,
     salaryDeduction: gross.salaryDeduction,

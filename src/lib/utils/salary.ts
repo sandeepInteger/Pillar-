@@ -327,7 +327,9 @@ export function computeGrossSalary(
   > & { start_date?: string | null },
   attendance: SalaryAttendanceBreakdown,
   /** YYYY-MM being calculated — no unused SL pay before the employee started */
-  month?: string
+  month?: string,
+  /** Per-month SL override (0 = no SL this month); null/undefined = profile default */
+  slAllowanceOverride?: number | null
 ): {
   grossAmount: number | null;
   salaryDeduction: number;
@@ -341,7 +343,9 @@ export function computeGrossSalary(
   salaryType: SalaryType;
 } {
   const salaryType = getEmployeeSalaryType(employee);
-  const slAllowance = Number(employee.monthly_sl_days ?? 0);
+  const slAllowance = Number(
+    slAllowanceOverride ?? employee.monthly_sl_days ?? 0
+  );
   const beforeStart =
     month != null &&
     employee.start_date != null &&
@@ -527,7 +531,9 @@ export function computeOpeningBalance(
   >,
   month: string,
   priorAttendanceByMonth: Map<string, AttendanceSalaryRecord[]>,
-  paymentsBeforeMonth: SalaryPayment[]
+  paymentsBeforeMonth: SalaryPayment[],
+  /** month (YYYY-MM) → SL allowance override */
+  slOverrides?: Map<string, number>
 ): number {
   const priorMonthEnd = addMonths(month, -1);
   const startMonth = getEmployeeSalaryStartMonth(
@@ -542,7 +548,12 @@ export function computeOpeningBalance(
   for (const priorMonth of getMonthsInRange(startMonth, priorMonthEnd)) {
     const records = priorAttendanceByMonth.get(priorMonth) ?? [];
     const attendance = aggregateAttendanceForSalary(records);
-    const gross = computeGrossSalary(employee, attendance, priorMonth);
+    const gross = computeGrossSalary(
+      employee,
+      attendance,
+      priorMonth,
+      slOverrides?.get(priorMonth)
+    );
     if (gross.grossAmount != null) totalEarned += gross.grossAmount;
   }
 
@@ -1010,10 +1021,16 @@ export function enrichSalaryRow(
   records: AttendanceSalaryRecord[],
   payments: SalaryPayment[],
   openingBalance = 0,
-  month?: string
+  month?: string,
+  slAllowanceOverride?: number | null
 ): Omit<SalaryRow, "employee"> {
   const attendance = aggregateAttendanceForSalary(records);
-  const gross = computeGrossSalary(employee, attendance, month);
+  const gross = computeGrossSalary(
+    employee,
+    attendance,
+    month,
+    slAllowanceOverride
+  );
   const totalPaidOut = Math.round(sumPaidOut(payments) * 100) / 100;
   const monthBalance =
     gross.grossAmount != null

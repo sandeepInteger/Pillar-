@@ -222,6 +222,8 @@ export interface EmployeeSalaryDetail {
   monthlySalary: number | null;
   salaryType: SalaryType;
   slAllowance: number;
+  /** SL set for this month only (0 = no SL); null = profile default applies */
+  slOverride: number | null;
   unusedSlDays: number;
   slEncashment: number;
   salaryDeduction: number;

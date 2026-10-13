@@ -8,6 +8,7 @@ import {
   deleteProjectBankInflow,
 } from "@/lib/actions/projectBankInflows";
 import { summarizeInflowsByWeek } from "@/lib/utils/projectBankInflows";
+import { BankInflowDownloadButton } from "@/components/projects/BankInflowDownloadButton";
 import {
   formatIndianRupee,
   formatRaBillDate,
@@ -73,12 +74,15 @@ export function ProjectBankInflowPanel({
 
   return (
     <section className="mt-8 space-y-4" id="bank-inflow">
-      <div>
-        <h2 className="text-lg font-semibold">Bank inflow</h2>
-        <p className="text-sm text-[var(--muted)]">
-          Log money received in your bank for this project — date, amount, and
-          reference (UTR, cheque, etc.).
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Bank inflow</h2>
+          <p className="text-sm text-[var(--muted)]">
+            Log money received in your bank for this project — date, amount, and
+            reference (UTR, cheque, etc.).
+          </p>
+        </div>
+        <BankInflowDownloadButton projectId={projectId} />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">

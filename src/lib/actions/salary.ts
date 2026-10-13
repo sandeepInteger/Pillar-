@@ -135,3 +135,54 @@ export async function deleteSalaryPayment(
   revalidatePath(`/salary/${employeeId}`);
   return { success: true };
 }
+
+/**
+ * Set the SL allowance for one month only. slDays = 0 → no SL that month;
+ * slDays = null → remove the override and use the profile default again.
+ */
+export async function setMonthlySlOverride(
+  employeeId: string,
+  month: string,
+  slDays: number | null
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    return { error: "Invalid month" };
+  }
+
+  if (slDays == null) {
+    const { error } = await supabase
+      .from("employee_monthly_sl_overrides")
+      .delete()
+      .eq("employee_id", employeeId)
+      .eq("month", month);
+    if (error) return { error: error.message };
+  } else {
+    if (Number.isNaN(slDays) || slDays < 0 || slDays > 31) {
+      return { error: "SL days must be between 0 and 31" };
+    }
+    const { error } = await supabase
+      .from("employee_monthly_sl_overrides")
+      .upsert(
+        {
+          employee_id: employeeId,
+          month,
+          sl_days: slDays,
+          created_by: user.id,
+        },
+        { onConflict: "employee_id,month" }
+      );
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/salary");
+  revalidatePath(`/salary/${employeeId}`);
+  revalidatePath(`/people/${employeeId}`);
+  return { success: true };
+}
