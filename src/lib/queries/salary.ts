@@ -31,14 +31,21 @@ async function getEmployeesWithRelations(
 ): Promise<Map<string, EmployeeWithRelations>> {
   const map = new Map<string, EmployeeWithRelations>();
   if (employeeIds.length === 0) return map;
+  const supabase = await createClient();
 
-  await Promise.all(
-    employeeIds.map(async (id) => {
-      const employee = await getEmployee(id);
-      if (employee) map.set(id, employee);
+  // One query per 100 ids instead of one query per employee
+  const pages = await Promise.all(
+    chunkIds(employeeIds).map(async (ids) => {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("*, employee_phones (*), employee_payment_methods (*)")
+        .in("id", ids);
+      if (error) console.error("getEmployeesWithRelations:", error.message);
+      return (data ?? []) as EmployeeWithRelations[];
     })
   );
 
+  for (const employee of pages.flat()) map.set(employee.id, employee);
   return map;
 }
 

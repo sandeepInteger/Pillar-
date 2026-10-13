@@ -1,8 +1,13 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { Employee, EmployeeWithRelations, Profile } from "@/types/database";
 import { sortEmployeesByHierarchy } from "@/lib/utils/employees";
 
-export async function getProfile(): Promise<Profile | null> {
+/**
+ * Cached per request: the layout and the page both need the profile, and
+ * each auth.getUser() is a network round trip to Supabase Auth.
+ */
+export const getProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -16,7 +21,7 @@ export async function getProfile(): Promise<Profile | null> {
     .single();
 
   return data;
-}
+});
 
 export async function getEmployees(filters?: {
   type?: string;

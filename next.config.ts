@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
       "./node_modules/pdfkit/js/**/*",
       "./node_modules/@react-pdf/**/*",
     ],
+    "/api/projects/[projectId]/bank-inflows": [
+      "./node_modules/pdfkit/js/**/*",
+      "./node_modules/@react-pdf/**/*",
+    ],
   },
 };
 
