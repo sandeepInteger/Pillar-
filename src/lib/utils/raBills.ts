@@ -1,9 +1,37 @@
-import type { RaBill, RaBillFormData, RaBillPaymentStatus } from "@/types/database";
+import type {
+  RaBill,
+  RaBillFormData,
+  RaBillPaymentStatus,
+  RaBillType,
+} from "@/types/database";
 import { roundToTwoDecimals } from "@/lib/utils/employees";
 
-export const RA_BILL_RETENTION_RATE = 0.05;
-export const RA_BILL_TDS_RATE = 0.01;
+/** Default deduction rates on gross, per bill type */
+export const RA_BILL_RATES: Record<
+  RaBillType,
+  { retention: number; tds: number }
+> = {
+  normal: { retention: 0.05, tds: 0.01 },
+  labour_supply: { retention: 0, tds: 0.02 },
+};
 export const RA_BILL_IGST_RATE = 0.18;
+
+/** Effective default rates: projects with no TDS get 0% TDS on every bill type */
+export function getRaBillRates(
+  billType: RaBillType,
+  projectTdsApplicable = true
+): { retention: number; tds: number } {
+  const rates = RA_BILL_RATES[billType];
+  return {
+    retention: rates.retention,
+    tds: projectTdsApplicable ? rates.tds : 0,
+  };
+}
+
+/** Labour supply bills never hold retention */
+export function billTypeHasRetention(billType: RaBillType): boolean {
+  return RA_BILL_RATES[billType].retention > 0;
+}
 
 export function computeIgstAmount(
   gross: number,
@@ -29,12 +57,21 @@ export function computeRaBillNet(
   return Math.max(0, roundToTwoDecimals(gross - retention - tds + igst));
 }
 
-export function computeDefaultRetention(gross: number): number {
-  return roundToTwoDecimals(gross * RA_BILL_RETENTION_RATE);
+export function computeDefaultRetention(
+  gross: number,
+  billType: RaBillType = "normal"
+): number {
+  return roundToTwoDecimals(gross * getRaBillRates(billType).retention);
 }
 
-export function computeDefaultTds(gross: number): number {
-  return roundToTwoDecimals(gross * RA_BILL_TDS_RATE);
+export function computeDefaultTds(
+  gross: number,
+  billType: RaBillType = "normal",
+  projectTdsApplicable = true
+): number {
+  return roundToTwoDecimals(
+    gross * getRaBillRates(billType, projectTdsApplicable).tds
+  );
 }
 
 export function stripIndianGrouping(value: string): string {
@@ -104,6 +141,7 @@ export function getEmptyRaBillForm(projectId = ""): RaBillFormData {
     project_id: projectId,
     bill_label: "",
     contractor_name: "",
+    bill_type: "normal",
     confirmed_date: new Date().toISOString().slice(0, 10),
     work_period_start: "",
     work_period_end: "",
@@ -125,6 +163,7 @@ export function raBillToFormData(
     project_id: projectId ?? bill.project_id,
     bill_label: bill.bill_label,
     contractor_name: bill.contractor_name ?? "",
+    bill_type: bill.bill_type ?? "normal",
     confirmed_date: bill.confirmed_date,
     work_period_start: bill.work_period_start ?? "",
     work_period_end: bill.work_period_end ?? "",
@@ -158,9 +197,9 @@ export function parseRaBillAmounts(data: RaBillFormData): {
     gross_amount,
     gst_applicable
   );
-  const retention_amount = roundToTwoDecimals(
-    parseIndianAmount(data.retention_amount)
-  );
+  const retention_amount = billTypeHasRetention(data.bill_type)
+    ? roundToTwoDecimals(parseIndianAmount(data.retention_amount))
+    : 0;
   const tds_amount = roundToTwoDecimals(parseIndianAmount(data.tds_amount));
   const net_amount = computeRaBillNet(
     gross_amount,
@@ -206,11 +245,16 @@ export function formatRaBillWorkPeriod(
 }
 
 export function applyDefaultDeductionsToForm(
-  form: RaBillFormData
+  form: RaBillFormData,
+  projectTdsApplicable = true
 ): Pick<RaBillFormData, "retention_amount" | "tds_amount"> {
   const gross = parseIndianAmount(form.gross_amount);
   return {
-    retention_amount: formatIndianAmount(computeDefaultRetention(gross)),
-    tds_amount: formatIndianAmount(computeDefaultTds(gross)),
+    retention_amount: formatIndianAmount(
+      computeDefaultRetention(gross, form.bill_type)
+    ),
+    tds_amount: formatIndianAmount(
+      computeDefaultTds(gross, form.bill_type, projectTdsApplicable)
+    ),
   };
 }

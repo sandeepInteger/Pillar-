@@ -11,6 +11,10 @@ function emptyToNull(value: string): string | null {
 }
 
 function buildPayload(data: RaBillFormData, userId: string) {
+  if (data.bill_type !== "normal" && data.bill_type !== "labour_supply") {
+    return { error: "Select the RA bill type" as const };
+  }
+
   const amounts = parseRaBillAmounts(data);
 
   if (amounts.gross_amount <= 0) {
@@ -29,6 +33,7 @@ function buildPayload(data: RaBillFormData, userId: string) {
       project_id: data.project_id,
       bill_label: data.bill_label.trim(),
       contractor_name: emptyToNull(data.contractor_name),
+      bill_type: data.bill_type,
       confirmed_date: data.confirmed_date,
       work_period_start: data.work_period_start,
       work_period_end: data.work_period_end,
@@ -104,6 +109,7 @@ export async function updateRaBill(id: string, data: RaBillFormData) {
       project_id: built.payload.project_id,
       bill_label: built.payload.bill_label,
       contractor_name: built.payload.contractor_name,
+      bill_type: built.payload.bill_type,
       confirmed_date: built.payload.confirmed_date,
       work_period_start: built.payload.work_period_start,
       work_period_end: built.payload.work_period_end,

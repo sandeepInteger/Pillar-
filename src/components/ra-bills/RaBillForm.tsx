@@ -2,19 +2,21 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Project, RaBillFormData } from "@/types/database";
+import type { Project, RaBillFormData, RaBillType } from "@/types/database";
+import { RA_BILL_TYPE_LABELS } from "@/types/database";
 import { createRaBill, updateRaBill } from "@/lib/actions/raBills";
 import {
   applyDefaultDeductionsToForm,
+  billTypeHasRetention,
   computeRaBillNet,
   computeDefaultRetention,
   computeDefaultTds,
   formatIndianRupee,
+  getRaBillRates,
   parseIndianAmount,
   parseRaBillAmounts,
   RA_BILL_IGST_RATE,
-  RA_BILL_RETENTION_RATE,
-  RA_BILL_TDS_RATE,
+  RA_BILL_RATES,
   sanitizeIndianAmountInput,
 } from "@/lib/utils/raBills";
 
@@ -47,6 +49,14 @@ export function RaBillForm({ initialData, projects, billId }: RaBillFormProps) {
   const netPreview =
     preview != null ? preview.net_amount : computeRaBillNet(0, 0, 0);
 
+  function isProjectTdsApplicable(projectId: string): boolean {
+    return projects.find((p) => p.id === projectId)?.tds_applicable ?? true;
+  }
+
+  const projectTdsApplicable = isProjectTdsApplicable(form.project_id);
+  const rates = getRaBillRates(form.bill_type, projectTdsApplicable);
+  const hasRetention = billTypeHasRetention(form.bill_type);
+
   function updateField<K extends keyof RaBillFormData>(
     key: K,
     value: RaBillFormData[K]
@@ -61,22 +71,47 @@ export function RaBillForm({ initialData, projects, billId }: RaBillFormProps) {
       const next = { ...prev, gross_amount };
       if (!retentionManual.current) {
         next.retention_amount = sanitizeIndianAmountInput(
-          String(computeDefaultRetention(grossNum))
+          String(computeDefaultRetention(grossNum, prev.bill_type))
         );
       }
       if (!tdsManual.current) {
         next.tds_amount = sanitizeIndianAmountInput(
-          String(computeDefaultTds(grossNum))
+          String(
+            computeDefaultTds(
+              grossNum,
+              prev.bill_type,
+              isProjectTdsApplicable(prev.project_id)
+            )
+          )
         );
       }
       return next;
     });
   }
 
-  function recalculateDeductions() {
+  /** Bill type / project decide the default rates, so re-apply them */
+  function resetDeductions(next: RaBillFormData): RaBillFormData {
     retentionManual.current = false;
     tdsManual.current = false;
-    setForm((prev) => ({ ...prev, ...applyDefaultDeductionsToForm(prev) }));
+    return {
+      ...next,
+      ...applyDefaultDeductionsToForm(
+        next,
+        isProjectTdsApplicable(next.project_id)
+      ),
+    };
+  }
+
+  function recalculateDeductions() {
+    setForm((prev) => resetDeductions(prev));
+  }
+
+  function updateBillType(bill_type: RaBillType) {
+    setForm((prev) => resetDeductions({ ...prev, bill_type }));
+  }
+
+  function updateProject(project_id: string) {
+    setForm((prev) => resetDeductions({ ...prev, project_id }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -125,7 +160,7 @@ export function RaBillForm({ initialData, projects, billId }: RaBillFormProps) {
             <select
               className={inputClass}
               value={form.project_id}
-              onChange={(e) => updateField("project_id", e.target.value)}
+              onChange={(e) => updateProject(e.target.value)}
               required
               disabled={!!billId}
             >
@@ -133,9 +168,47 @@ export function RaBillForm({ initialData, projects, billId }: RaBillFormProps) {
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} ({p.project_code})
+                  {p.tds_applicable === false ? " · No TDS" : ""}
                 </option>
               ))}
             </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelClass}>RA bill type *</label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(RA_BILL_TYPE_LABELS) as RaBillType[]).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => updateBillType(type)}
+                  className={`rounded-lg border px-4 py-2 text-left text-sm transition-colors ${
+                    form.bill_type === type
+                      ? "border-gray-900 bg-gray-900 text-white"
+                      : "border-[var(--border)] bg-white text-gray-700 hover:border-gray-400"
+                  }`}
+                >
+                  <span className="block font-medium">
+                    {RA_BILL_TYPE_LABELS[type]}
+                  </span>
+                  <span
+                    className={`block text-xs ${
+                      form.bill_type === type ? "text-gray-300" : "text-[var(--muted)]"
+                    }`}
+                  >
+                    {RA_BILL_RATES[type].retention > 0
+                      ? `${RA_BILL_RATES[type].retention * 100}% retention`
+                      : "No retention"}
+                    {" · "}
+                    {RA_BILL_RATES[type].tds * 100}% TDS
+                  </span>
+                </button>
+              ))}
+            </div>
+            {!projectTdsApplicable && (
+              <p className="mt-2 text-xs text-amber-700">
+                This project has no TDS — TDS defaults to 0.
+              </p>
+            )}
           </div>
           <div>
             <label className={labelClass}>RA Bill no. / name *</label>
@@ -190,8 +263,8 @@ export function RaBillForm({ initialData, projects, billId }: RaBillFormProps) {
             onClick={recalculateDeductions}
             className="text-xs font-medium text-[var(--primary)] hover:underline"
           >
-            Reset retention ({RA_BILL_RETENTION_RATE * 100}%) & TDS (
-            {RA_BILL_TDS_RATE * 100}%) from gross
+            Reset{hasRetention ? ` retention (${rates.retention * 100}%) &` : ""}{" "}
+            TDS ({rates.tds * 100}%) from gross
           </button>
         </div>
         <div className="mb-4 flex flex-wrap items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3">
@@ -265,27 +338,40 @@ export function RaBillForm({ initialData, projects, billId }: RaBillFormProps) {
               </div>
             </>
           )}
+          {hasRetention ? (
+            <div>
+              <label className={labelClass}>
+                Retention held ({rates.retention * 100}% — editable)
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                className={inputClass}
+                value={form.retention_amount}
+                onChange={(e) => {
+                  retentionManual.current = true;
+                  updateField(
+                    "retention_amount",
+                    sanitizeIndianAmountInput(e.target.value)
+                  );
+                }}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col justify-end rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
+              <p className="text-xs font-medium uppercase text-[var(--muted)]">
+                Retention
+              </p>
+              <p className="mt-1 text-sm font-medium text-gray-700">
+                No retention on labour supply bills
+              </p>
+            </div>
+          )}
           <div>
             <label className={labelClass}>
-              Retention held ({RA_BILL_RETENTION_RATE * 100}% — editable)
-            </label>
-            <input
-              type="text"
-              inputMode="decimal"
-              className={inputClass}
-              value={form.retention_amount}
-              onChange={(e) => {
-                retentionManual.current = true;
-                updateField(
-                  "retention_amount",
-                  sanitizeIndianAmountInput(e.target.value)
-                );
-              }}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>
-              TDS deducted ({RA_BILL_TDS_RATE * 100}% — editable)
+              TDS deducted (
+              {projectTdsApplicable ? `${rates.tds * 100}%` : "no TDS on this project"}{" "}
+              — editable)
             </label>
             <input
               type="text"

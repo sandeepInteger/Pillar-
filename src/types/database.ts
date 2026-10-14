@@ -462,6 +462,8 @@ export interface Project {
   start_date: string | null;
   end_date: string | null;
   description: string | null;
+  /** False for projects where the client deducts no TDS on RA bills */
+  tds_applicable: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -512,15 +514,25 @@ export interface ProjectFormData {
   start_date: string;
   end_date: string;
   description: string;
+  tds_applicable: boolean;
 }
 
 export type RaBillPaymentStatus = "pending" | "received";
+
+/** Normal: 5% retention + 1% TDS. Labour supply: no retention + 2% TDS. */
+export type RaBillType = "normal" | "labour_supply";
+
+export const RA_BILL_TYPE_LABELS: Record<RaBillType, string> = {
+  normal: "Normal",
+  labour_supply: "Labour supply",
+};
 
 export interface RaBill {
   id: string;
   project_id: string;
   bill_label: string;
   contractor_name: string | null;
+  bill_type: RaBillType;
   confirmed_date: string;
   work_period_start: string | null;
   work_period_end: string | null;
@@ -546,6 +558,7 @@ export interface RaBillFormData {
   project_id: string;
   bill_label: string;
   contractor_name: string;
+  bill_type: RaBillType;
   confirmed_date: string;
   work_period_start: string;
   work_period_end: string;

@@ -115,6 +115,38 @@ export function ProjectForm({ initialData, projectId }: ProjectFormProps) {
             />
           </div>
         </div>
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-gray-800">
+              Client deducts TDS on RA bills?
+            </p>
+            <p className="text-xs text-[var(--muted)]">
+              No = RA bills for this project default to 0 TDS (normal and
+              labour supply).
+            </p>
+          </div>
+          <div className="flex rounded-lg border border-[var(--border)] bg-white p-0.5">
+            {[
+              { value: true, label: "Yes" },
+              { value: false, label: "No" },
+            ].map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                onClick={() =>
+                  setForm({ ...form, tds_applicable: option.value })
+                }
+                className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                  form.tds_applicable === option.value
+                    ? "bg-gray-900 text-white"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div>
           <label className={labelClass}>Description</label>
           <textarea

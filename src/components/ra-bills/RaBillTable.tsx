@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { RaBillSummary, RaBillWithProject } from "@/types/database";
+import { RA_BILL_TYPE_LABELS } from "@/types/database";
 import {
   formatIndianRupee,
   formatRaBillDate,
@@ -90,6 +91,11 @@ export function RaBillTable({ bills, summary, isAdmin }: RaBillTableProps) {
                         </Link>
                       ) : (
                         <span className="font-medium">{bill.bill_label}</span>
+                      )}
+                      {bill.bill_type === "labour_supply" && (
+                        <span className="ml-2 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium uppercase text-sky-700 ring-1 ring-sky-100">
+                          {RA_BILL_TYPE_LABELS.labour_supply}
+                        </span>
                       )}
                       {bill.contractor_name && (
                         <p className="text-xs text-[var(--muted)]">

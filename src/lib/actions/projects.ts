@@ -19,6 +19,7 @@ function buildProjectPayload(data: ProjectFormData) {
     start_date: emptyToNull(data.start_date),
     end_date: emptyToNull(data.end_date),
     description: emptyToNull(data.description),
+    tds_applicable: data.tds_applicable,
   };
 }
 

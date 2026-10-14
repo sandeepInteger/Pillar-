@@ -9,6 +9,7 @@ export function getEmptyProjectForm(): ProjectFormData {
     start_date: "",
     end_date: "",
     description: "",
+    tds_applicable: true,
   };
 }
 
@@ -21,6 +22,7 @@ export function projectToFormData(project: ProjectWithTeam): ProjectFormData {
     start_date: project.start_date ?? "",
     end_date: project.end_date ?? "",
     description: project.description ?? "",
+    tds_applicable: project.tds_applicable ?? true,
   };
 }
 
