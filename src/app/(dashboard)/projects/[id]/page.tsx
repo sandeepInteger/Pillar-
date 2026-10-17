@@ -5,6 +5,7 @@ import { ProjectBankInflowPanel } from "@/components/projects/ProjectBankInflowP
 import { ProjectTeamPanel } from "@/components/projects/ProjectTeamPanel";
 import { ProjectRaBillsPanel } from "@/components/ra-bills/ProjectRaBillsPanel";
 import { ProjectWorkQuantityPanel } from "@/components/projects/ProjectWorkQuantityPanel";
+import { ProjectSiteExpensesPanel } from "@/components/site-expenses/ProjectSiteExpensesPanel";
 import {
   getProjectBankInflows,
   summarizeProjectInflows,
@@ -13,6 +14,9 @@ import { getProject, getProjects } from "@/lib/queries/projects";
 import { getRaBills, summarizeRaBills } from "@/lib/queries/raBills";
 import { getProjectWorkQuantityLogs, getWorkTypes } from "@/lib/queries/workQuantity";
 import { getEmployees, getProfile } from "@/lib/queries/employees";
+import { getExpenseCategories, getSiteExpenses } from "@/lib/queries/siteExpenses";
+import { summarizeSiteExpenses } from "@/lib/utils/siteExpenses";
+import { getCurrentMonth, getMonthDateRange } from "@/lib/utils/salary";
 import {
   PROJECT_STATUS_COLORS,
   PROJECT_STATUS_LABELS,
@@ -28,7 +32,9 @@ export default async function ProjectDetailPage({
   params,
 }: ProjectDetailPageProps) {
   const { id } = await params;
-  const [project, allEmployees, allProjects, projectRaBills, bankInflows, workQuantityLogs, workTypes, profile] =
+  const expenseMonth = getCurrentMonth();
+  const expenseRange = getMonthDateRange(expenseMonth);
+  const [project, allEmployees, allProjects, projectRaBills, bankInflows, workQuantityLogs, workTypes, siteExpenses, expenseCategories, profile] =
     await Promise.all([
       getProject(id),
       getEmployees({ status: "active" }),
@@ -37,6 +43,12 @@ export default async function ProjectDetailPage({
       getProjectBankInflows(id),
       getProjectWorkQuantityLogs(id),
       getWorkTypes(),
+      getSiteExpenses({
+        projectId: id,
+        from: expenseRange.start,
+        to: expenseRange.end,
+      }),
+      getExpenseCategories(),
       getProfile(),
     ]);
   const isAdmin = profile?.role === "admin";
@@ -156,6 +168,15 @@ export default async function ProjectDetailPage({
         projectId={id}
         logs={workQuantityLogs}
         workTypes={workTypes}
+        isAdmin={isAdmin}
+      />
+
+      <ProjectSiteExpensesPanel
+        projectId={id}
+        month={expenseMonth}
+        expenses={siteExpenses}
+        summary={summarizeSiteExpenses(siteExpenses, expenseCategories)}
+        categories={expenseCategories}
         isAdmin={isAdmin}
       />
 

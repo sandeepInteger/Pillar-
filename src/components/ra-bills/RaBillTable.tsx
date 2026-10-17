@@ -17,7 +17,7 @@ interface RaBillTableProps {
 export function RaBillTable({ bills, summary, isAdmin }: RaBillTableProps) {
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <SummaryCard label="Bills" value={String(summary.billCount)} />
         <SummaryCard
           label="Pending in bank"
@@ -33,10 +33,14 @@ export function RaBillTable({ bills, summary, isAdmin }: RaBillTableProps) {
           label="Total TDS (on bills)"
           value={formatIndianRupee(summary.totalTds)}
         />
+        <SummaryCard
+          label="Total debit (on bills)"
+          value={formatIndianRupee(summary.totalDebit)}
+        />
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-white">
-        <table className="min-w-[1180px] w-full text-sm">
+        <table className="min-w-[1280px] w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--background)] text-left text-xs uppercase tracking-wide text-[var(--muted)]">
               <th className="px-4 py-3 font-semibold">Project</th>
@@ -47,6 +51,7 @@ export function RaBillTable({ bills, summary, isAdmin }: RaBillTableProps) {
               <th className="px-4 py-3 font-semibold text-right">IGST</th>
               <th className="px-4 py-3 font-semibold text-right">Retention</th>
               <th className="px-4 py-3 font-semibold text-right">TDS</th>
+              <th className="px-4 py-3 font-semibold text-right">Debit</th>
               <th className="px-4 py-3 font-semibold text-right">Net in bank</th>
               <th className="px-4 py-3 font-semibold">Bank received</th>
               <th className="px-4 py-3 font-semibold">Status</th>
@@ -56,7 +61,7 @@ export function RaBillTable({ bills, summary, isAdmin }: RaBillTableProps) {
             {bills.length === 0 ? (
               <tr>
                 <td
-                  colSpan={11}
+                  colSpan={12}
                   className="px-4 py-12 text-center text-[var(--muted)]"
                 >
                   No RA bills yet. Add one to track submission and bank payment.
@@ -130,6 +135,20 @@ export function RaBillTable({ bills, summary, isAdmin }: RaBillTableProps) {
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-slate-600">
                       {formatIndianRupee(Number(bill.tds_amount))}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-red-700">
+                      {bill.debit_applicable ? (
+                        <>
+                          {formatIndianRupee(Number(bill.debit_amount))}
+                          {bill.debit_note && (
+                            <span className="mt-0.5 block max-w-[160px] truncate text-[10px] text-[var(--muted)]">
+                              {bill.debit_note}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums">
                       {formatIndianRupee(Number(bill.net_amount))}

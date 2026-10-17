@@ -36,7 +36,6 @@ export interface EmployeeStatementPDFData {
   reportingFrom: string;
   reportingTo: string;
 
-  tracksAttendance: boolean;
   summary: {
     totalDays: number;
     present: number;

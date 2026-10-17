@@ -344,17 +344,23 @@ export function usesDailyWageWithSl(employeeType: EmployeeType): boolean {
   return DAILY_WAGE_SL_EMPLOYEE_TYPES.includes(employeeType);
 }
 
+/** Shift attendance + daily wage: foreman & engineer (with SL) and founder (no SL) */
+export const DAILY_WAGE_EMPLOYEE_TYPES: EmployeeType[] = [
+  ...DAILY_WAGE_SL_EMPLOYEE_TYPES,
+  "founder",
+];
+
+export function usesDailyWage(employeeType: EmployeeType): boolean {
+  return DAILY_WAGE_EMPLOYEE_TYPES.includes(employeeType);
+}
+
 export function usesShiftAttendance(employeeType: EmployeeType): boolean {
+  return usesDailyWage(employeeType);
+}
+
+/** Paid SL allowance applies to foreman & engineer only */
+export function allowsSl(employeeType: EmployeeType): boolean {
   return usesDailyWageWithSl(employeeType);
-}
-
-/** Founder: fixed monthly pay only — no attendance or SL tracking */
-export function isFounderFixedSalary(employeeType: EmployeeType): boolean {
-  return employeeType === "founder";
-}
-
-export function tracksAttendance(employeeType: EmployeeType): boolean {
-  return !isFounderFixedSalary(employeeType);
 }
 
 /** Standard hours that count as one present day */
@@ -447,7 +453,7 @@ export const DEFAULT_SALARY_TYPE: Record<EmployeeType, SalaryType> = {
   foreman: "daily",
   engineer: "daily",
   staff: "hourly",
-  founder: "monthly",
+  founder: "daily",
 };
 
 export type ProjectStatus = "active" | "on_hold" | "completed";
@@ -541,6 +547,10 @@ export interface RaBill {
   igst_amount: number;
   retention_amount: number;
   tds_amount: number;
+  /** Optional client debit (recovery / penalty), subtracted from net */
+  debit_applicable: boolean;
+  debit_amount: number;
+  debit_note: string | null;
   net_amount: number;
   bank_received_date: string | null;
   bank_received_amount: number | null;
@@ -566,6 +576,9 @@ export interface RaBillFormData {
   gst_applicable: boolean;
   retention_amount: string;
   tds_amount: string;
+  debit_applicable: boolean;
+  debit_amount: string;
+  debit_note: string;
   bank_received_date: string;
   bank_received_amount: string;
   notes: string;
@@ -577,6 +590,7 @@ export interface RaBillSummary {
   totalGross: number;
   totalRetention: number;
   totalTds: number;
+  totalDebit: number;
   totalNet: number;
   pendingNet: number;
   receivedNet: number;
@@ -766,3 +780,55 @@ export const EMPLOYEE_TYPE_CHART_COLORS: Record<EmployeeType, string> = {
 export const ANALYTICS_SALARY_TYPES: EmployeeType[] = [
   ...EMPLOYEE_TYPE_DISPLAY_ORDER,
 ];
+
+/** Admin-configurable site expense category (labour expense, machine, petrol, ...) */
+export interface ExpenseCategory {
+  id: string;
+  code: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SiteExpense {
+  id: string;
+  project_id: string;
+  expense_date: string;
+  /** expense_categories.code */
+  category: string;
+  amount: number;
+  paid_to: string | null;
+  payment_mode: SalaryPaymentMode;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SiteExpenseWithProject extends SiteExpense {
+  projects: Pick<Project, "id" | "name" | "project_code">;
+}
+
+export interface SiteExpenseFormData {
+  project_id: string;
+  expense_date: string;
+  category: string;
+  amount: string;
+  paid_to: string;
+  payment_mode: SalaryPaymentMode;
+  notes: string;
+}
+
+export interface SiteExpenseCategoryTotal {
+  category: string;
+  name: string;
+  totalAmount: number;
+  entryCount: number;
+}
+
+export interface SiteExpenseSummary {
+  entryCount: number;
+  totalAmount: number;
+  byCategory: SiteExpenseCategoryTotal[];
+}

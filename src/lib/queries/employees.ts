@@ -83,7 +83,7 @@ export async function getEmployee(
   return data as EmployeeWithRelations;
 }
 
-/** Active employees for payroll — includes founders (no attendance required). */
+/** Active employees for payroll — unassigned founders show under every project. */
 export async function getActiveEmployeesForSalary(filters?: {
   type?: string;
   projectId?: string;

@@ -61,6 +61,7 @@ export function summarizeRaBills(bills: RaBillWithProject[]): RaBillSummary {
   let totalGross = 0;
   let totalRetention = 0;
   let totalTds = 0;
+  let totalDebit = 0;
   let totalNet = 0;
   let pendingNet = 0;
   let receivedNet = 0;
@@ -69,6 +70,7 @@ export function summarizeRaBills(bills: RaBillWithProject[]): RaBillSummary {
     totalGross += Number(bill.gross_amount);
     totalRetention += Number(bill.retention_amount);
     totalTds += Number(bill.tds_amount);
+    totalDebit += Number(bill.debit_amount ?? 0);
     totalNet += Number(bill.net_amount);
 
     if (bill.bank_received_date) {
@@ -85,6 +87,7 @@ export function summarizeRaBills(bills: RaBillWithProject[]): RaBillSummary {
     totalGross: round(totalGross),
     totalRetention: round(totalRetention),
     totalTds: round(totalTds),
+    totalDebit: round(totalDebit),
     totalNet: round(totalNet),
     pendingNet: round(pendingNet),
     receivedNet: round(receivedNet),

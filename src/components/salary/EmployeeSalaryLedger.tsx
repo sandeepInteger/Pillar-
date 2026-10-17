@@ -11,7 +11,7 @@ import type {
   SalaryPaymentType,
 } from "@/types/database";
 import {
-  isFounderFixedSalary,
+  allowsSl,
   SALARY_PAYMENT_APP_OPTIONS,
   SALARY_PAYMENT_MODE_LABELS,
   SALARY_PAYMENT_TYPE_LABELS,
@@ -290,7 +290,7 @@ export function EmployeeSalaryLedger({
 
       {isAdmin &&
         detail.salaryType !== "hourly" &&
-        !isFounderFixedSalary(detail.employee.employee_type) && (
+        allowsSl(detail.employee.employee_type) && (
           <MonthSlOverrideControl
             key={detail.month}
             employeeId={detail.employee.id}

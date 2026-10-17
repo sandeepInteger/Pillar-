@@ -25,6 +25,19 @@ function buildPayload(data: RaBillFormData, userId: string) {
       error: "Retention + TDS cannot be more than bill amount" as const,
     };
   }
+  if (amounts.debit_applicable && amounts.debit_amount <= 0) {
+    return { error: "Enter the debit amount, or turn debit off" as const };
+  }
+  const netBeforeDebit =
+    amounts.gross_amount -
+    amounts.retention_amount -
+    amounts.tds_amount +
+    amounts.igst_amount;
+  if (amounts.debit_amount > netBeforeDebit) {
+    return {
+      error: "Debit cannot be more than the amount after retention & TDS" as const,
+    };
+  }
 
   const bank_received_date = emptyToNull(data.bank_received_date);
 
@@ -42,6 +55,9 @@ function buildPayload(data: RaBillFormData, userId: string) {
       igst_amount: amounts.igst_amount,
       retention_amount: amounts.retention_amount,
       tds_amount: amounts.tds_amount,
+      debit_applicable: amounts.debit_applicable,
+      debit_amount: amounts.debit_amount,
+      debit_note: amounts.debit_applicable ? emptyToNull(data.debit_note) : null,
       net_amount: amounts.net_amount,
       bank_received_date,
       bank_received_amount: bank_received_date
@@ -118,6 +134,9 @@ export async function updateRaBill(id: string, data: RaBillFormData) {
       igst_amount: built.payload.igst_amount,
       retention_amount: built.payload.retention_amount,
       tds_amount: built.payload.tds_amount,
+      debit_applicable: built.payload.debit_applicable,
+      debit_amount: built.payload.debit_amount,
+      debit_note: built.payload.debit_note,
       net_amount: built.payload.net_amount,
       bank_received_date: built.payload.bank_received_date,
       bank_received_amount: built.payload.bank_received_amount,

@@ -8,7 +8,6 @@ import {
   SALARY_PAYMENT_MODE_LABELS,
   SALARY_PAYMENT_TYPE_LABELS,
   STANDARD_MONTH_WORKING_DAYS,
-  tracksAttendance,
 } from "@/types/database";
 import { aggregateAttendanceForSalary, parseMonth } from "@/lib/utils/salary";
 import { formatInr } from "@/components/pdf/PdfShared";
@@ -163,10 +162,7 @@ export function buildEmployeeStatementPdfData(
   const otNote =
     summary.overtimeHours > 0 ? `${summary.overtimeHours} hrs` : "-";
 
-  if (!tracksAttendance(employee.employee_type) && detail.monthlySalary != null) {
-    rateLabel = `${formatInr(detail.monthlySalary)} / month (fixed)`;
-    rows.push({ label: "Fixed monthly salary", detail: "No attendance", amount: detail.monthlySalary });
-  } else if (detail.salaryType === "hourly" && employee.hourly_rate != null) {
+  if (detail.salaryType === "hourly" && employee.hourly_rate != null) {
     const rate = Number(employee.hourly_rate);
     rateLabel = `${formatInr(rate)} / hour`;
     rows.push({
@@ -252,7 +248,6 @@ export function buildEmployeeStatementPdfData(
     project: projectName ?? "—",
     reportingFrom: formatDayDate(isoFor(1)),
     reportingTo: formatDayDate(isoFor(lastDay)),
-    tracksAttendance: tracksAttendance(employee.employee_type),
     summary,
     columns,
     payable: { rateLabel, rows, netSalary },

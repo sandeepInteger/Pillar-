@@ -47,7 +47,7 @@ export function ProjectRaBillsPanel({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-[var(--border)] bg-white p-4">
           <p className="text-xs text-[var(--muted)]">Awaiting bank</p>
           <p className="mt-1 text-lg font-bold text-amber-700">
@@ -67,6 +67,12 @@ export function ProjectRaBillsPanel({
           <p className="text-xs text-[var(--muted)]">TDS on bills</p>
           <p className="mt-1 text-lg font-bold">
             {formatIndianRupee(summary.totalTds)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-[var(--border)] bg-white p-4">
+          <p className="text-xs text-[var(--muted)]">Debit on bills</p>
+          <p className="mt-1 text-lg font-bold text-red-700">
+            {formatIndianRupee(summary.totalDebit)}
           </p>
         </div>
       </div>
@@ -109,6 +115,12 @@ export function ProjectRaBillsPanel({
                       <span className="text-emerald-700">
                         {" "}
                         (incl. IGST)
+                      </span>
+                    )}
+                    {bill.debit_applicable && (
+                      <span className="text-red-700">
+                        {" "}
+                        · Debit {formatIndianRupee(Number(bill.debit_amount))}
                       </span>
                     )}
                   </p>

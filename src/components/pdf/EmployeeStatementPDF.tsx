@@ -148,37 +148,33 @@ export function EmployeeStatementPDF({ data }: { data: EmployeeStatementPDFData 
           reportingTo={data.reportingTo}
         />
 
-        {data.tracksAttendance && (
-          <>
-            <View style={styles.section} wrap={false}>
-              <Text style={pdfStyles.sectionTitle}>Attendance Summary</Text>
-              <View style={styles.summaryTable}>
-                <SummaryCell label="Total Days" value={summary.totalDays} />
-                <SummaryCell label="Present" value={summary.present} />
-                <SummaryCell label="Absent" value={summary.absent} />
-                <SummaryCell label="Half Day" value={summary.halfDay} />
-                <SummaryCell label="Leave (SL)" value={summary.leave} />
-                <SummaryCell
-                  label="Overtime"
-                  value={summary.overtimeHours > 0 ? `${summary.overtimeHours} hrs` : "-"}
-                  last
-                />
-              </View>
-            </View>
+        <View style={styles.section} wrap={false}>
+          <Text style={pdfStyles.sectionTitle}>Attendance Summary</Text>
+          <View style={styles.summaryTable}>
+            <SummaryCell label="Total Days" value={summary.totalDays} />
+            <SummaryCell label="Present" value={summary.present} />
+            <SummaryCell label="Absent" value={summary.absent} />
+            <SummaryCell label="Half Day" value={summary.halfDay} />
+            <SummaryCell label="Leave (SL)" value={summary.leave} />
+            <SummaryCell
+              label="Overtime"
+              value={summary.overtimeHours > 0 ? `${summary.overtimeHours} hrs` : "-"}
+              last
+            />
+          </View>
+        </View>
 
-            <View style={styles.section} wrap={false}>
-              <Text style={pdfStyles.sectionTitle}>Daily Attendance</Text>
-              <View style={styles.gridRow}>
-                {data.columns.map((col, i) => (
-                  <View key={col.label} style={{ flex: 1, flexDirection: "row" }}>
-                    {i > 0 && <View style={styles.gridGap} />}
-                    <DayColumn label={col.label} days={col.days} />
-                  </View>
-                ))}
+        <View style={styles.section} wrap={false}>
+          <Text style={pdfStyles.sectionTitle}>Daily Attendance</Text>
+          <View style={styles.gridRow}>
+            {data.columns.map((col, i) => (
+              <View key={col.label} style={{ flex: 1, flexDirection: "row" }}>
+                {i > 0 && <View style={styles.gridGap} />}
+                <DayColumn label={col.label} days={col.days} />
               </View>
-            </View>
-          </>
-        )}
+            ))}
+          </View>
+        </View>
 
         <View style={styles.section} wrap={false}>
           <Text style={pdfStyles.sectionTitle}>Total Payable</Text>

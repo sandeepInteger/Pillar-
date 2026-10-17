@@ -6,7 +6,6 @@ import {
   EMPLOYEE_TYPE_LABELS,
   EMPLOYEE_STATUS_LABELS,
   EMPLOYEE_TYPE_COLORS,
-  isFounderFixedSalary,
 } from "@/types/database";
 import {
   formatDate,
@@ -19,7 +18,6 @@ import {
 } from "@/lib/utils/salary";
 
 function payKindLabel(employee: EmployeeWithRelations): string {
-  if (isFounderFixedSalary(employee.employee_type)) return "Fixed";
   const salaryType = getEmployeeSalaryType(employee);
   if (salaryType === "hourly") return "Hourly";
   if (salaryType === "daily") return "Daily";

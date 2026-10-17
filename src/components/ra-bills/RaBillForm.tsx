@@ -387,15 +387,89 @@ export function RaBillForm({ initialData, projects, billId }: RaBillFormProps) {
               }}
             />
           </div>
-          <div className="flex flex-col justify-end rounded-xl bg-violet-50 p-4">
+          <div className="sm:col-span-2 flex flex-wrap items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-gray-800">
+                Any debit on this bill?
+              </p>
+              <p className="text-xs text-[var(--muted)]">
+                Yes subtracts a debit (recovery / penalty / material) from the
+                amount after retention & TDS.
+              </p>
+            </div>
+            <div className="flex rounded-lg border border-[var(--border)] bg-white p-0.5">
+              {[false, true].map((value) => (
+                <button
+                  key={String(value)}
+                  type="button"
+                  onClick={() => updateField("debit_applicable", value)}
+                  className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                    form.debit_applicable === value
+                      ? "bg-gray-900 text-white"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  {value ? "Yes" : "No"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {form.debit_applicable && (
+            <>
+              <div>
+                <label className={labelClass}>Debit amount (₹) *</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className={inputClass}
+                  placeholder="e.g. 25,000"
+                  value={form.debit_amount}
+                  onChange={(e) =>
+                    updateField(
+                      "debit_amount",
+                      sanitizeIndianAmountInput(e.target.value)
+                    )
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Debit reason</label>
+                <input
+                  className={inputClass}
+                  placeholder="e.g. Material recovery, penalty"
+                  value={form.debit_note}
+                  onChange={(e) => updateField("debit_note", e.target.value)}
+                />
+              </div>
+            </>
+          )}
+          {preview && (
+            <div className="sm:col-span-2 space-y-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm tabular-nums">
+              <BreakdownRow label="Bill amount (gross)" value={preview.gross_amount} />
+              {preview.igst_amount > 0 && (
+                <BreakdownRow label="+ IGST" value={preview.igst_amount} />
+              )}
+              {preview.retention_amount > 0 && (
+                <BreakdownRow label="− Retention" value={preview.retention_amount} />
+              )}
+              <BreakdownRow label="− TDS" value={preview.tds_amount} />
+              {preview.debit_applicable && (
+                <BreakdownRow label="− Debit" value={preview.debit_amount} danger />
+              )}
+            </div>
+          )}
+          <div className="flex flex-col justify-end rounded-xl bg-violet-50 p-4 sm:col-span-2">
             <p className="text-xs font-medium uppercase text-violet-800">
               {form.gst_applicable
                 ? "Net in bank (after deductions + IGST)"
                 : "Net payable (after retention & TDS)"}
+              {form.debit_applicable ? " − debit" : ""}
             </p>
-            {preview && form.gst_applicable && (
+            {preview && (form.gst_applicable || form.debit_applicable) && (
               <p className="mt-1 text-xs text-violet-700/90">
-                Gross − retention − TDS + IGST
+                Gross − retention − TDS{form.gst_applicable ? " + IGST" : ""}
+                {form.debit_applicable ? " − debit" : ""}
               </p>
             )}
             <p className="mt-1 text-2xl font-bold text-violet-900">
@@ -461,5 +535,26 @@ export function RaBillForm({ initialData, projects, billId }: RaBillFormProps) {
         </button>
       </div>
     </form>
+  );
+}
+
+function BreakdownRow({
+  label,
+  value,
+  danger,
+}: {
+  label: string;
+  value: number;
+  danger?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap justify-between gap-2">
+      <span className={danger ? "text-red-700" : "text-[var(--muted)]"}>
+        {label}
+      </span>
+      <span className={`font-medium ${danger ? "text-red-700" : ""}`}>
+        {formatIndianRupee(value)}
+      </span>
+    </div>
   );
 }

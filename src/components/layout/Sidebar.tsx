@@ -14,6 +14,7 @@ import {
   Settings,
   LogOut,
   Layers,
+  Wallet,
   X,
 } from "lucide-react";
 import type { Profile } from "@/types/database";
@@ -56,6 +57,12 @@ const menuSections = [
     label: "Commerce",
     items: [
       { href: "/ra-bills", label: "RA Bills", icon: Receipt, active: true },
+      {
+        href: "/site-expenses",
+        label: "Site Expenses",
+        icon: Wallet,
+        active: true,
+      },
     ],
   },
   {

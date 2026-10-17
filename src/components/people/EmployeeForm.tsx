@@ -9,8 +9,8 @@ import {
   DEFAULT_SALARY_TYPE,
   EMPLOYEE_TYPE_LABELS,
   EMPLOYEE_STATUS_LABELS,
-  isFounderFixedSalary,
-  usesDailyWageWithSl,
+  allowsSl,
+  usesDailyWage,
 } from "@/types/database";
 import { createEmployee, updateEmployee } from "@/lib/actions/employees";
 import {
@@ -172,11 +172,9 @@ export function EmployeeForm({ initialData, employeeId }: EmployeeFormProps) {
                   ...prev,
                   employee_type,
                   salary_type,
-                  monthly_sl_days: isFounderFixedSalary(employee_type)
-                    ? "0"
-                    : usesDailyWageWithSl(employee_type)
-                      ? String(DEFAULT_MONTHLY_SL_DAYS[employee_type] ?? 0)
-                      : "0",
+                  monthly_sl_days: allowsSl(employee_type)
+                    ? String(DEFAULT_MONTHLY_SL_DAYS[employee_type] ?? 0)
+                    : "0",
                 }));
               }}
             >
@@ -240,36 +238,13 @@ export function EmployeeForm({ initialData, employeeId }: EmployeeFormProps) {
       <section className="pillar-card p-6">
         <h2 className="mb-4 text-lg font-semibold">Pay & Salary</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          {isFounderFixedSalary(form.employee_type) ? (
+          {usesDailyWage(form.employee_type) ? (
             <>
               <div className="sm:col-span-2">
                 <p className="text-sm text-[var(--muted)]">
-                  Founders receive a fixed monthly salary. Attendance and SL are
-                  not tracked.
-                </p>
-              </div>
-              <div>
-                <label className={labelClass}>Fixed monthly salary (₹) *</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  className={inputClass}
-                  placeholder="e.g. 150000"
-                  value={form.monthly_salary}
-                  onChange={(e) =>
-                    updateField("monthly_salary", e.target.value)
-                  }
-                  required
-                />
-              </div>
-            </>
-          ) : usesDailyWageWithSl(form.employee_type) ? (
-            <>
-              <div className="sm:col-span-2">
-                <p className="text-sm text-[var(--muted)]">
-                  Foreman & engineer: fixed daily wage from shift attendance (½,
-                  full, double). Paid SL days per month — mark SL in attendance.
+                  {allowsSl(form.employee_type)
+                    ? "Foreman & engineer: fixed daily wage from shift attendance (½, full, double). Paid SL days per month — mark SL in attendance."
+                    : "Founder: daily wage from shift attendance (½, full, double). No SL."}
                 </p>
               </div>
               <div>
@@ -292,6 +267,7 @@ export function EmployeeForm({ initialData, employeeId }: EmployeeFormProps) {
                   Up to 2 decimal places (e.g. 850.50).
                 </p>
               </div>
+              {allowsSl(form.employee_type) && (
               <div>
                 <label className={labelClass}>Paid SL days / month</label>
                 <input
@@ -310,6 +286,7 @@ export function EmployeeForm({ initialData, employeeId }: EmployeeFormProps) {
                   unpaid.
                 </p>
               </div>
+              )}
             </>
           ) : (
             <>

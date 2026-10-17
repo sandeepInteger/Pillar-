@@ -52,9 +52,13 @@ export function computeRaBillNet(
   gross: number,
   retention: number,
   tds: number,
-  igst = 0
+  igst = 0,
+  debit = 0
 ): number {
-  return Math.max(0, roundToTwoDecimals(gross - retention - tds + igst));
+  return Math.max(
+    0,
+    roundToTwoDecimals(gross - retention - tds + igst - debit)
+  );
 }
 
 export function computeDefaultRetention(
@@ -149,6 +153,9 @@ export function getEmptyRaBillForm(projectId = ""): RaBillFormData {
     gst_applicable: false,
     retention_amount: formatIndianAmount(0),
     tds_amount: formatIndianAmount(0),
+    debit_applicable: false,
+    debit_amount: "",
+    debit_note: "",
     bank_received_date: "",
     bank_received_amount: "",
     notes: "",
@@ -171,6 +178,11 @@ export function raBillToFormData(
     gst_applicable: bill.gst_applicable ?? false,
     retention_amount: formatIndianAmount(Number(bill.retention_amount)),
     tds_amount: formatIndianAmount(Number(bill.tds_amount)),
+    debit_applicable: bill.debit_applicable ?? false,
+    debit_amount: bill.debit_applicable
+      ? formatIndianAmount(Number(bill.debit_amount))
+      : "",
+    debit_note: bill.debit_note ?? "",
     bank_received_date: bill.bank_received_date ?? "",
     bank_received_amount:
       bill.bank_received_amount != null
@@ -187,6 +199,8 @@ export function parseRaBillAmounts(data: RaBillFormData): {
   total_bill_amount: number;
   retention_amount: number;
   tds_amount: number;
+  debit_applicable: boolean;
+  debit_amount: number;
   net_amount: number;
   bank_received_amount: number | null;
 } {
@@ -201,11 +215,16 @@ export function parseRaBillAmounts(data: RaBillFormData): {
     ? roundToTwoDecimals(parseIndianAmount(data.retention_amount))
     : 0;
   const tds_amount = roundToTwoDecimals(parseIndianAmount(data.tds_amount));
+  const debit_applicable = data.debit_applicable;
+  const debit_amount = debit_applicable
+    ? roundToTwoDecimals(parseIndianAmount(data.debit_amount))
+    : 0;
   const net_amount = computeRaBillNet(
     gross_amount,
     retention_amount,
     tds_amount,
-    igst_amount
+    igst_amount,
+    debit_amount
   );
   const bank_received_amount =
     data.bank_received_amount.trim() !== ""
@@ -219,6 +238,8 @@ export function parseRaBillAmounts(data: RaBillFormData): {
     total_bill_amount,
     retention_amount,
     tds_amount,
+    debit_applicable,
+    debit_amount,
     net_amount,
     bank_received_amount,
   };

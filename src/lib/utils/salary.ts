@@ -12,7 +12,6 @@ import type {
 } from "@/types/database";
 import {
   EMPLOYEE_TYPE_LABELS,
-  isFounderFixedSalary,
   SALARY_PAYMENT_APP_OPTIONS,
   SALARY_PAYMENT_MODE_LABELS,
   SALARY_PAYMENT_TYPE_LABELS,
@@ -294,9 +293,6 @@ export function formatRateDisplay(
   const salaryType = getEmployeeSalaryType(employee);
   if (salaryType === "monthly") {
     if (employee.monthly_salary == null) return null;
-    if (isFounderFixedSalary(employee.employee_type)) {
-      return `${formatCurrency(Number(employee.monthly_salary))}/mo fixed`;
-    }
     const sl =
       Number(employee.monthly_sl_days) > 0
         ? ` · ${employee.monthly_sl_days} SL/mo`
@@ -394,18 +390,6 @@ export function computeGrossSalary(
         ...noEncashment,
         dailyRate: null,
         monthlySalary: null,
-        salaryType,
-      };
-    }
-
-    if (isFounderFixedSalary(employee.employee_type)) {
-      return {
-        grossAmount: monthlySalary,
-        salaryDeduction: 0,
-        slAllowance: 0,
-        ...noEncashment,
-        dailyRate: null,
-        monthlySalary,
         salaryType,
       };
     }
@@ -567,9 +551,6 @@ function buildEarnedLabel(
   gross: ReturnType<typeof computeGrossSalary>
 ): string {
   if (gross.salaryType === "monthly" && gross.monthlySalary != null) {
-    if (isFounderFixedSalary(employee.employee_type)) {
-      return `Fixed salary ${formatCurrency(gross.monthlySalary)} (no attendance)`;
-    }
     const parts = [`Monthly salary ${formatCurrency(gross.monthlySalary)}`];
     if (attendance.slDays > 0) {
       parts.push(`${attendance.slDays} SL day(s) paid`);

@@ -15,6 +15,7 @@ import {
   SHIFT_TYPE_LABELS,
   SHIFT_TYPE_SHORT,
   STANDARD_SHIFT_HOURS,
+  allowsSl,
   usesShiftAttendance,
 } from "@/types/database";
 import { saveWeekAttendance } from "@/lib/actions/attendance";
@@ -158,6 +159,8 @@ export function AttendanceGrid({
       const next = { ...prev };
       for (const emp of employees) {
         if (!usesShiftAttendance(emp.employee_type)) continue;
+        // Founders have no SL — leave their cell as is when the column is set to SL
+        if (shift === "sl" && !allowsSl(emp.employee_type)) continue;
         next[attendanceCellKey(emp.id, date)] = shift;
       }
       return next;
@@ -401,7 +404,12 @@ export function AttendanceGrid({
                             disabled={!isAdmin}
                             className={`w-full rounded-lg border px-1 py-1.5 text-center text-xs font-semibold outline-none disabled:opacity-60 ${SHIFT_TYPE_COLORS[shift]}`}
                           >
-                            {SHIFT_OPTIONS.map((s) => (
+                            {SHIFT_OPTIONS.filter(
+                              (s) =>
+                                s !== "sl" ||
+                                allowsSl(emp.employee_type) ||
+                                shift === "sl"
+                            ).map((s) => (
                               <option key={s} value={s}>
                                 {SHIFT_TYPE_SHORT[s]}
                               </option>
@@ -495,7 +503,7 @@ export function AttendanceGrid({
         Hourly staff: enter total hours per day. {STANDARD_SHIFT_HOURS} hours =
         1 present (man-day); hours beyond {STANDARD_SHIFT_HOURS} count as
         overtime for pay. Foreman & engineer use shift marks (including SL).
-        Founders are not listed (fixed salary only).
+        Founders use shift marks too, without SL.
       </p>
     </div>
   );

@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { chunkIds, fetchAllRows } from "@/lib/supabase/fetchAll";
 import type { AttendanceRecord, Employee, ShiftType } from "@/types/database";
-import { tracksAttendance } from "@/types/database";
 import { getWeekDates } from "@/lib/utils/attendance";
 import { sortEmployeesByHierarchy } from "@/lib/utils/employees";
 import { getMonthDateRange } from "@/lib/utils/salary";
@@ -16,9 +15,7 @@ export async function getActiveEmployeesForAttendance(filters?: {
     if (filters?.type && filters.type !== "all") {
       employees = employees.filter((e) => e.employee_type === filters.type);
     }
-    return sortEmployeesByHierarchy(
-      employees.filter((e) => tracksAttendance(e.employee_type))
-    );
+    return sortEmployeesByHierarchy(employees);
   }
 
   const supabase = await createClient();
@@ -39,9 +36,7 @@ export async function getActiveEmployeesForAttendance(filters?: {
     return [];
   }
 
-  return sortEmployeesByHierarchy(
-    (data ?? []).filter((e) => tracksAttendance(e.employee_type))
-  );
+  return sortEmployeesByHierarchy(data ?? []);
 }
 
 export async function getRangeAttendance(

@@ -4,7 +4,7 @@ import type { SalarySummary } from "@/types/database";
 import {
   EMPLOYEE_TYPE_COLORS,
   EMPLOYEE_TYPE_LABELS,
-  isFounderFixedSalary,
+  allowsSl,
 } from "@/types/database";
 import {
   addMonths,
@@ -167,11 +167,7 @@ export function SalaryTable({
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right font-medium tabular-nums">
-                      {isFounderFixedSalary(row.employee.employee_type) ? (
-                        <span className="text-[var(--muted)]">Fixed</span>
-                      ) : (
-                        row.manDays
-                      )}
+                      {row.manDays}
                       {row.overtimeHours > 0 && (
                         <p className="text-[10px] font-normal text-amber-700">
                           +{row.overtimeHours}h OT
@@ -192,7 +188,7 @@ export function SalaryTable({
                       {(row.salaryType === "monthly" ||
                         row.salaryType === "daily") &&
                         row.slDays > 0 &&
-                        !isFounderFixedSalary(row.employee.employee_type) && (
+                        allowsSl(row.employee.employee_type) && (
                         <p className="text-[var(--muted)]">
                           {row.slDays} SL used
                         </p>
@@ -265,8 +261,8 @@ export function SalaryTable({
       </div>
 
       <p className="text-xs text-[var(--muted)]">
-        Founder: fixed monthly (no attendance). Foreman & engineer: daily wage ×
-        (man-days + paid SL). Unused SL days are paid at the day rate. Others:
+        Foreman & engineer: daily wage × (man-days + paid SL). Founder: daily
+        wage × man-days (no SL). Unused SL days are paid at the day rate. Others:
         hourly × hours worked (no SL). Click a name for the ledger.
       </p>
     </div>

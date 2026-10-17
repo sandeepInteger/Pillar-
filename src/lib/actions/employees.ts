@@ -10,7 +10,7 @@ import {
   syncEmployeeToSheet,
 } from "@/lib/google/sheets";
 import type { EmployeeFormData } from "@/types/database";
-import { usesDailyWageWithSl } from "@/types/database";
+import { allowsSl, usesDailyWage } from "@/types/database";
 import { roundToTwoDecimals } from "@/lib/utils/employees";
 
 function emptyToNull(value: string): string | null {
@@ -73,13 +73,8 @@ async function savePaymentMethods(
 }
 
 function buildEmployeePayload(data: EmployeeFormData) {
-  const isFounder = data.employee_type === "founder";
-  const isDailyWageSl = usesDailyWageWithSl(data.employee_type);
-  const salary_type = isFounder
-    ? "monthly"
-    : isDailyWageSl
-      ? "daily"
-      : "hourly";
+  const isDailyWage = usesDailyWage(data.employee_type);
+  const salary_type = isDailyWage ? "daily" : "hourly";
 
   return {
     full_name: data.full_name.trim(),
@@ -101,25 +96,17 @@ function buildEmployeePayload(data: EmployeeFormData) {
     notes: emptyToNull(data.notes),
     salary_type,
     daily_rate:
-      isDailyWageSl && data.daily_rate.trim() !== ""
+      isDailyWage && data.daily_rate.trim() !== ""
         ? roundToTwoDecimals(Number.parseFloat(data.daily_rate))
         : null,
     hourly_rate:
-      !isFounder &&
-      !isDailyWageSl &&
-      data.hourly_rate.trim() !== ""
+      !isDailyWage && data.hourly_rate.trim() !== ""
         ? roundToTwoDecimals(Number.parseFloat(data.hourly_rate))
         : null,
-    monthly_salary:
-      isFounder && data.monthly_salary.trim() !== ""
-        ? Number.parseFloat(data.monthly_salary)
-        : null,
-    monthly_sl_days:
-      isFounder
-        ? 0
-        : isDailyWageSl
-          ? Number.parseFloat(data.monthly_sl_days) || 0
-          : 0,
+    monthly_salary: null,
+    monthly_sl_days: allowsSl(data.employee_type)
+      ? Number.parseFloat(data.monthly_sl_days) || 0
+      : 0,
   };
 }
 

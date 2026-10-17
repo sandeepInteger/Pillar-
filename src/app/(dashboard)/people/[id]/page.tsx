@@ -16,7 +16,6 @@ import {
 } from "@/types/database";
 import { formatDate, maskAccountNumber } from "@/lib/utils/employees";
 import { formatRateDisplay, getCurrentMonth } from "@/lib/utils/salary";
-import { tracksAttendance } from "@/types/database";
 import { Pencil, Phone, MapPin, CreditCard, User } from "lucide-react";
 
 interface EmployeeDetailPageProps {
@@ -230,27 +229,25 @@ export default async function EmployeeDetailPage({
         </div>
       </section>
 
-      {tracksAttendance(employee.employee_type) && (
-        <div className="mt-6">
-          <PersonAttendanceSection
-            employeeId={id}
-            month={month}
-            records={attendanceRecords}
-            summary={{
-              manDays: salaryDetail?.manDays ?? 0,
-              absentDays: salaryDetail?.absentDays ?? 0,
-              slDays: salaryDetail?.slDays ?? 0,
-              overtimeHours: attendanceRecords.reduce(
-                (sum, r) => sum + Number(r.overtime_hours ?? 0),
-                0
-              ),
-            }}
-            projectName={activeProject?.name ?? null}
-            rateDisplay={formatRateDisplay(employee)}
-            grossAmount={salaryDetail?.grossAmount ?? null}
-          />
-        </div>
-      )}
+      <div className="mt-6">
+        <PersonAttendanceSection
+          employeeId={id}
+          month={month}
+          records={attendanceRecords}
+          summary={{
+            manDays: salaryDetail?.manDays ?? 0,
+            absentDays: salaryDetail?.absentDays ?? 0,
+            slDays: salaryDetail?.slDays ?? 0,
+            overtimeHours: attendanceRecords.reduce(
+              (sum, r) => sum + Number(r.overtime_hours ?? 0),
+              0
+            ),
+          }}
+          projectName={activeProject?.name ?? null}
+          rateDisplay={formatRateDisplay(employee)}
+          grossAmount={salaryDetail?.grossAmount ?? null}
+        />
+      </div>
 
       {salaryDetail && (
         <div className="mt-6">
