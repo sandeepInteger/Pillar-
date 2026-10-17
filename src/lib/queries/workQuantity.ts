@@ -1,5 +1,26 @@
 import { createClient } from "@/lib/supabase/server";
-import type { WorkQuantityLog, WorkQuantityLogWithProject } from "@/types/database";
+import type {
+  WorkQuantityLog,
+  WorkQuantityLogWithProject,
+  WorkTypeConfig,
+} from "@/types/database";
+
+/** All work types (active first, then by name). Inactive ones still label old logs. */
+export async function getWorkTypes(): Promise<WorkTypeConfig[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("work_types")
+    .select("*")
+    .order("is_active", { ascending: false })
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("getWorkTypes:", error.message);
+    return [];
+  }
+
+  return (data ?? []) as WorkTypeConfig[];
+}
 
 export async function getWorkQuantityLogs(filters?: {
   projectId?: string;

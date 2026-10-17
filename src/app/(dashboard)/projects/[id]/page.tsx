@@ -11,7 +11,7 @@ import {
 } from "@/lib/queries/projectBankInflows";
 import { getProject, getProjects } from "@/lib/queries/projects";
 import { getRaBills, summarizeRaBills } from "@/lib/queries/raBills";
-import { getProjectWorkQuantityLogs } from "@/lib/queries/workQuantity";
+import { getProjectWorkQuantityLogs, getWorkTypes } from "@/lib/queries/workQuantity";
 import { getEmployees, getProfile } from "@/lib/queries/employees";
 import {
   PROJECT_STATUS_COLORS,
@@ -28,7 +28,7 @@ export default async function ProjectDetailPage({
   params,
 }: ProjectDetailPageProps) {
   const { id } = await params;
-  const [project, allEmployees, allProjects, projectRaBills, bankInflows, workQuantityLogs, profile] =
+  const [project, allEmployees, allProjects, projectRaBills, bankInflows, workQuantityLogs, workTypes, profile] =
     await Promise.all([
       getProject(id),
       getEmployees({ status: "active" }),
@@ -36,6 +36,7 @@ export default async function ProjectDetailPage({
       getRaBills({ projectId: id }),
       getProjectBankInflows(id),
       getProjectWorkQuantityLogs(id),
+      getWorkTypes(),
       getProfile(),
     ]);
   const isAdmin = profile?.role === "admin";
@@ -154,6 +155,7 @@ export default async function ProjectDetailPage({
       <ProjectWorkQuantityPanel
         projectId={id}
         logs={workQuantityLogs}
+        workTypes={workTypes}
         isAdmin={isAdmin}
       />
 

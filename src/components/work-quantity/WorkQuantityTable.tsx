@@ -8,22 +8,28 @@ import type {
   WorkQuantityFormData,
   WorkQuantityLogWithProject,
   WorkQuantitySummary,
-  WorkType,
   WorkQuantityUnit,
+  WorkTypeConfig,
 } from "@/types/database";
-import { WORK_TYPE_DISPLAY_ORDER, WORK_TYPE_LABELS, WORK_QUANTITY_UNIT_LABELS } from "@/types/database";
 import { addWorkQuantityLog, deleteWorkQuantityLog } from "@/lib/actions/workQuantity";
 import {
   formatQuantity,
   getEmptyWorkQuantityForm,
-  sanitizeQuantityInput,
+  getWorkTypeName,
+  groupWorkQuantityByDay,
 } from "@/lib/utils/workQuantity";
+import { formatIndianRupee } from "@/lib/utils/raBills";
 import { formatDate } from "@/lib/utils/employees";
+import { formatMonthLabel } from "@/lib/utils/salary";
+import { WorkTypeQuantityFields } from "@/components/work-quantity/WorkTypeQuantityFields";
 
 interface WorkQuantityTableProps {
   logs: WorkQuantityLogWithProject[];
   summary: WorkQuantitySummary;
   projects: Project[];
+  workTypes: WorkTypeConfig[];
+  /** YYYY-MM shown in the date-wise list */
+  month: string;
   isAdmin: boolean;
 }
 
@@ -35,6 +41,8 @@ export function WorkQuantityTable({
   logs,
   summary,
   projects,
+  workTypes,
+  month,
   isAdmin,
 }: WorkQuantityTableProps) {
   const router = useRouter();
@@ -44,6 +52,12 @@ export function WorkQuantityTable({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hideNilDays, setHideNilDays] = useState(false);
+
+  const allDays = groupWorkQuantityByDay(logs, month);
+  const days = hideNilDays ? allDays.filter((d) => d.logs.length > 0) : allDays;
+  const workedDayCount = allDays.filter((d) => d.logs.length > 0).length;
+  const colCount = isAdmin ? 9 : 8;
 
   function updateField<K extends keyof WorkQuantityFormData>(
     key: K,
@@ -65,7 +79,7 @@ export function WorkQuantityTable({
       return;
     }
 
-    setForm(getEmptyWorkQuantityForm(form.project_id));
+    setForm(getEmptyWorkQuantityForm(form.project_id, form.work_type));
     setShowForm(false);
     setLoading(false);
     router.refresh();
@@ -83,7 +97,18 @@ export function WorkQuantityTable({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="rounded-xl border border-[var(--border)] bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-[var(--muted)]">
+            Total work value
+          </p>
+          <p className="mt-1 text-lg font-bold">
+            {formatIndianRupee(summary.totalAmount)}
+          </p>
+          <p className="text-xs text-[var(--muted)]">
+            {summary.entryCount} entr{summary.entryCount === 1 ? "y" : "ies"}
+          </p>
+        </div>
         {summary.byType.map((bucket) => {
           const units = Object.entries(bucket.totalsByUnit) as [
             WorkQuantityUnit,
@@ -95,7 +120,7 @@ export function WorkQuantityTable({
               className="rounded-xl border border-[var(--border)] bg-white p-4"
             >
               <p className="text-xs uppercase tracking-wide text-[var(--muted)]">
-                {WORK_TYPE_LABELS[bucket.workType]}
+                {bucket.name}
               </p>
               {units.length === 0 ? (
                 <p className="mt-1 text-lg font-bold text-[var(--muted)]">—</p>
@@ -107,6 +132,7 @@ export function WorkQuantityTable({
                 </p>
               )}
               <p className="text-xs text-[var(--muted)]">
+                {formatIndianRupee(bucket.totalAmount)} ·{" "}
                 {bucket.entryCount} entr{bucket.entryCount === 1 ? "y" : "ies"}
               </p>
             </div>
@@ -164,48 +190,13 @@ export function WorkQuantityTable({
               onChange={(e) => updateField("work_date", e.target.value)}
             />
           </div>
-          <div>
-            <label className={labelClass}>Work type *</label>
-            <select
-              className={inputClass}
-              value={form.work_type}
-              onChange={(e) => updateField("work_type", e.target.value as WorkType)}
-            >
-              {WORK_TYPE_DISPLAY_ORDER.map((type) => (
-                <option key={type} value={type}>
-                  {WORK_TYPE_LABELS[type]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>Quantity *</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              required
-              className={inputClass}
-              placeholder="e.g. 250"
-              value={form.quantity}
-              onChange={(e) =>
-                updateField("quantity", sanitizeQuantityInput(e.target.value))
-              }
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Unit *</label>
-            <select
-              className={inputClass}
-              value={form.unit}
-              onChange={(e) => updateField("unit", e.target.value as WorkQuantityUnit)}
-            >
-              {Object.entries(WORK_QUANTITY_UNIT_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <WorkTypeQuantityFields
+            form={form}
+            workTypes={workTypes}
+            onChange={(key, value) => updateField(key, value)}
+            inputClass={inputClass}
+            labelClass={labelClass}
+          />
           <div>
             <label className={labelClass}>Notes</label>
             <input
@@ -234,63 +225,129 @@ export function WorkQuantityTable({
         </form>
       )}
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-[var(--muted)]">
+          <span className="font-semibold text-gray-700">{formatMonthLabel(month)}</span>
+          {" · "}
+          {workedDayCount} of {allDays.length} day{allDays.length === 1 ? "" : "s"} with work
+        </p>
+        <label className="inline-flex items-center gap-2 text-sm text-[var(--muted)]">
+          <input
+            type="checkbox"
+            checked={hideNilDays}
+            onChange={(e) => setHideNilDays(e.target.checked)}
+          />
+          Hide nil days
+        </label>
+      </div>
+
       <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-white">
-        <table className="min-w-[760px] w-full text-sm">
+        <table className="min-w-[1000px] w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--background)] text-left text-xs uppercase tracking-wide text-[var(--muted)]">
               <th className="px-4 py-3 font-semibold">Date</th>
               <th className="px-4 py-3 font-semibold">Project</th>
               <th className="px-4 py-3 font-semibold">Work type</th>
               <th className="px-4 py-3 font-semibold text-right">Quantity</th>
+              <th className="px-4 py-3 font-semibold text-right">Rate</th>
+              <th className="px-4 py-3 font-semibold text-right">Amount</th>
               <th className="px-4 py-3 font-semibold">Notes</th>
               {isAdmin && <th className="px-4 py-3 font-semibold text-right">Actions</th>}
+              <th className="px-4 py-3 font-semibold text-right">Day total</th>
             </tr>
           </thead>
           <tbody>
-            {logs.length === 0 ? (
+            {days.length === 0 ? (
               <tr>
-                <td
-                  colSpan={isAdmin ? 6 : 5}
-                  className="px-4 py-10 text-center text-[var(--muted)]"
-                >
-                  No work quantity entries yet.
+                <td colSpan={colCount} className="px-4 py-10 text-center text-[var(--muted)]">
+                  No work logged in {formatMonthLabel(month)}.
                 </td>
               </tr>
             ) : (
-              logs.map((log) => (
-                <tr
-                  key={log.id}
-                  className="border-b border-[var(--border)] last:border-0"
-                >
-                  <td className="px-4 py-3 tabular-nums">
-                    {formatDate(log.work_date)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="font-medium">{log.projects.name}</span>
-                    <span className="block text-xs text-[var(--muted)]">
-                      {log.projects.project_code}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{WORK_TYPE_LABELS[log.work_type]}</td>
-                  <td className="px-4 py-3 text-right tabular-nums font-medium">
-                    {formatQuantity(Number(log.quantity), log.unit)}
-                  </td>
-                  <td className="px-4 py-3 text-[var(--muted)]">
-                    {log.notes || "—"}
-                  </td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(log.id, log.project_id)}
-                        className="text-xs font-medium text-red-600 hover:underline"
-                      >
-                        Delete
-                      </button>
+              days.map((day) =>
+                day.logs.length === 0 ? (
+                  <tr
+                    key={day.date}
+                    className="border-b border-[var(--border)] bg-[var(--background)] last:border-0"
+                  >
+                    <td className="px-4 py-2 tabular-nums whitespace-nowrap text-[var(--muted)]">
+                      {formatDate(day.date)}
                     </td>
-                  )}
-                </tr>
-              ))
+                    <td
+                      colSpan={colCount - 2}
+                      className="px-4 py-2 text-xs italic text-[var(--muted)]"
+                    >
+                      Nil — no work logged
+                    </td>
+                    <td className="px-4 py-2 text-right text-[var(--muted)]">—</td>
+                  </tr>
+                ) : (
+                  day.logs.map((log, i) => (
+                      <tr
+                        key={log.id}
+                        className={`align-top last:border-0 ${
+                          i === day.logs.length - 1 ? "border-b border-[var(--border)]" : ""
+                        }`}
+                      >
+                        {i === 0 && (
+                          <td
+                            rowSpan={day.logs.length}
+                            className="px-4 py-3 tabular-nums font-medium whitespace-nowrap"
+                          >
+                            {formatDate(day.date)}
+                            {day.logs.length > 1 && (
+                              <span className="block text-xs font-normal text-[var(--muted)]">
+                                {day.logs.length} entries
+                              </span>
+                            )}
+                          </td>
+                        )}
+                        <td className="px-4 py-3">
+                          <span className="font-medium">{log.projects.name}</span>
+                          <span className="block text-xs text-[var(--muted)]">
+                            {log.projects.project_code}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {getWorkTypeName(workTypes, log.work_type)}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums font-medium">
+                          {formatQuantity(Number(log.quantity), log.unit)}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums text-[var(--muted)]">
+                          {log.rate == null
+                            ? "—"
+                            : `${formatIndianRupee(Number(log.rate))} / ${log.unit.toUpperCase()}`}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums font-medium">
+                          {log.amount == null ? "—" : formatIndianRupee(Number(log.amount))}
+                        </td>
+                        <td className="px-4 py-3 text-[var(--muted)]">
+                          {log.notes || "—"}
+                        </td>
+                        {isAdmin && (
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(log.id, log.project_id)}
+                              className="text-xs font-medium text-red-600 hover:underline"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        )}
+                        {i === 0 && (
+                          <td
+                            rowSpan={day.logs.length}
+                            className="px-4 py-3 text-right tabular-nums font-semibold"
+                          >
+                            {formatIndianRupee(day.totalAmount)}
+                          </td>
+                        )}
+                      </tr>
+                  ))
+                )
+              )
             )}
           </tbody>
         </table>

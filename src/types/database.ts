@@ -519,7 +519,7 @@ export interface ProjectFormData {
 
 export type RaBillPaymentStatus = "pending" | "received";
 
-/** Normal: 5% retention + 1% TDS. Labour supply: no retention + 2% TDS. */
+/** Normal: 5% retention + 1% TDS. Labour supply: no retention + 1% TDS. */
 export type RaBillType = "normal" | "labour_supply";
 
 export const RA_BILL_TYPE_LABELS: Record<RaBillType, string> = {
@@ -665,27 +665,38 @@ export interface MonthRaBillCashReceipt {
   billCount: number;
 }
 
-export type WorkType = "block_work" | "shuttering_work";
+/** Code of a row in public.work_types (e.g. "block_work", "scaffolding_work"). */
+export type WorkType = string;
 
-export const WORK_TYPE_LABELS: Record<WorkType, string> = {
-  block_work: "Block Work",
-  shuttering_work: "Shuttering Work",
-};
-
-/** Add new work types here as they come up — mirror in a new migration's check constraint. */
-export const WORK_TYPE_DISPLAY_ORDER: WorkType[] = [
-  "block_work",
-  "shuttering_work",
-];
-
-export type WorkQuantityUnit = "nos" | "sqft" | "cum" | "rft";
+export type WorkQuantityUnit = "nos" | "sqft" | "sqm" | "cum" | "rft" | "rmt" | "kg";
 
 export const WORK_QUANTITY_UNIT_LABELS: Record<WorkQuantityUnit, string> = {
   nos: "Nos",
   sqft: "Sqft",
-  cum: "Cum",
+  sqm: "Sqm (m²)",
+  cum: "Cum (m³)",
   rft: "Rft",
+  rmt: "Rmt (running m)",
+  kg: "Kg",
 };
+
+/** Work type master: fixed rate per measuring unit, set by admins. */
+export interface WorkTypeConfig {
+  id: string;
+  code: WorkType;
+  name: string;
+  unit: WorkQuantityUnit;
+  rate: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkTypeFormData {
+  name: string;
+  unit: WorkQuantityUnit;
+  rate: string;
+}
 
 export interface WorkQuantityLog {
   id: string;
@@ -694,6 +705,9 @@ export interface WorkQuantityLog {
   work_type: WorkType;
   quantity: number;
   unit: WorkQuantityUnit;
+  /** Rate snapshot at logging time; null for entries logged before rates existed */
+  rate: number | null;
+  amount: number | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -709,18 +723,20 @@ export interface WorkQuantityFormData {
   work_date: string;
   work_type: WorkType;
   quantity: string;
-  unit: WorkQuantityUnit;
   notes: string;
 }
 
 export interface WorkQuantityTypeTotal {
   workType: WorkType;
+  name: string;
   totalsByUnit: Partial<Record<WorkQuantityUnit, number>>;
+  totalAmount: number;
   entryCount: number;
 }
 
 export interface WorkQuantitySummary {
   entryCount: number;
+  totalAmount: number;
   byType: WorkQuantityTypeTotal[];
 }
 

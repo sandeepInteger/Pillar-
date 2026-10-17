@@ -12,7 +12,7 @@ export const RA_BILL_RATES: Record<
   { retention: number; tds: number }
 > = {
   normal: { retention: 0.05, tds: 0.01 },
-  labour_supply: { retention: 0, tds: 0.02 },
+  labour_supply: { retention: 0, tds: 0.01 },
 };
 export const RA_BILL_IGST_RATE = 0.18;
 

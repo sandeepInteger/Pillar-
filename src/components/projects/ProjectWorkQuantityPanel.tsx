@@ -2,20 +2,27 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { WorkQuantityFormData, WorkQuantityLog, WorkType, WorkQuantityUnit } from "@/types/database";
-import { WORK_TYPE_DISPLAY_ORDER, WORK_TYPE_LABELS, WORK_QUANTITY_UNIT_LABELS } from "@/types/database";
+import type {
+  WorkQuantityFormData,
+  WorkQuantityLog,
+  WorkQuantityUnit,
+  WorkTypeConfig,
+} from "@/types/database";
 import { addWorkQuantityLog, deleteWorkQuantityLog } from "@/lib/actions/workQuantity";
 import {
   formatQuantity,
   getEmptyWorkQuantityForm,
-  sanitizeQuantityInput,
+  getWorkTypeName,
   summarizeWorkQuantity,
 } from "@/lib/utils/workQuantity";
+import { formatIndianRupee } from "@/lib/utils/raBills";
 import { formatDate } from "@/lib/utils/employees";
+import { WorkTypeQuantityFields } from "@/components/work-quantity/WorkTypeQuantityFields";
 
 interface ProjectWorkQuantityPanelProps {
   projectId: string;
   logs: WorkQuantityLog[];
+  workTypes: WorkTypeConfig[];
   isAdmin: boolean;
 }
 
@@ -26,6 +33,7 @@ const labelClass = "mb-1 block text-sm font-medium text-gray-700";
 export function ProjectWorkQuantityPanel({
   projectId,
   logs,
+  workTypes,
   isAdmin,
 }: ProjectWorkQuantityPanelProps) {
   const router = useRouter();
@@ -36,7 +44,7 @@ export function ProjectWorkQuantityPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const summary = summarizeWorkQuantity(logs);
+  const summary = summarizeWorkQuantity(logs, workTypes);
 
   function updateField<K extends keyof WorkQuantityFormData>(
     key: K,
@@ -58,7 +66,7 @@ export function ProjectWorkQuantityPanel({
       return;
     }
 
-    setForm(getEmptyWorkQuantityForm(projectId));
+    setForm(getEmptyWorkQuantityForm(projectId, form.work_type));
     setShowForm(false);
     setLoading(false);
     router.refresh();
@@ -80,7 +88,7 @@ export function ProjectWorkQuantityPanel({
         <div>
           <h2 className="text-lg font-semibold">Work Quantity</h2>
           <p className="text-sm text-[var(--muted)]">
-            Daily work performed on this site — block work, shuttering, etc.
+            Daily work performed on this site — {formatIndianRupee(summary.totalAmount)} total value
           </p>
         </div>
         {isAdmin && (
@@ -94,7 +102,7 @@ export function ProjectWorkQuantityPanel({
         )}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {summary.byType.map((bucket) => {
           const units = Object.entries(bucket.totalsByUnit) as [
             WorkQuantityUnit,
@@ -106,7 +114,7 @@ export function ProjectWorkQuantityPanel({
               className="rounded-xl border border-[var(--border)] bg-white p-4"
             >
               <p className="text-xs text-[var(--muted)]">
-                {WORK_TYPE_LABELS[bucket.workType]}
+                {bucket.name}
               </p>
               {units.length === 0 ? (
                 <p className="mt-1 text-lg font-bold text-[var(--muted)]">—</p>
@@ -117,6 +125,9 @@ export function ProjectWorkQuantityPanel({
                     .join(" · ")}
                 </p>
               )}
+              <p className="text-xs text-[var(--muted)]">
+                {formatIndianRupee(bucket.totalAmount)}
+              </p>
             </div>
           );
         })}
@@ -143,49 +154,14 @@ export function ProjectWorkQuantityPanel({
               onChange={(e) => updateField("work_date", e.target.value)}
             />
           </div>
+          <WorkTypeQuantityFields
+            form={form}
+            workTypes={workTypes}
+            onChange={(key, value) => updateField(key, value)}
+            inputClass={inputClass}
+            labelClass={labelClass}
+          />
           <div>
-            <label className={labelClass}>Work type *</label>
-            <select
-              className={inputClass}
-              value={form.work_type}
-              onChange={(e) => updateField("work_type", e.target.value as WorkType)}
-            >
-              {WORK_TYPE_DISPLAY_ORDER.map((type) => (
-                <option key={type} value={type}>
-                  {WORK_TYPE_LABELS[type]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>Quantity *</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              required
-              className={inputClass}
-              placeholder="e.g. 250"
-              value={form.quantity}
-              onChange={(e) =>
-                updateField("quantity", sanitizeQuantityInput(e.target.value))
-              }
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Unit *</label>
-            <select
-              className={inputClass}
-              value={form.unit}
-              onChange={(e) => updateField("unit", e.target.value as WorkQuantityUnit)}
-            >
-              {Object.entries(WORK_QUANTITY_UNIT_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="sm:col-span-2">
             <label className={labelClass}>Notes</label>
             <input
               className={inputClass}
@@ -219,12 +195,14 @@ export function ProjectWorkQuantityPanel({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-white">
-          <table className="min-w-[560px] w-full text-sm">
+          <table className="min-w-[720px] w-full text-sm">
             <thead>
               <tr className="border-b bg-[var(--background)] text-left text-xs uppercase text-[var(--muted)]">
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Work type</th>
                 <th className="px-4 py-3 text-right">Quantity</th>
+                <th className="px-4 py-3 text-right">Rate</th>
+                <th className="px-4 py-3 text-right">Amount</th>
                 <th className="px-4 py-3">Notes</th>
                 {isAdmin && <th className="px-4 py-3 w-20" />}
               </tr>
@@ -235,9 +213,19 @@ export function ProjectWorkQuantityPanel({
                   <td className="px-4 py-3 whitespace-nowrap">
                     {formatDate(log.work_date)}
                   </td>
-                  <td className="px-4 py-3">{WORK_TYPE_LABELS[log.work_type]}</td>
+                  <td className="px-4 py-3">
+                    {getWorkTypeName(workTypes, log.work_type)}
+                  </td>
                   <td className="px-4 py-3 text-right font-semibold tabular-nums">
                     {formatQuantity(Number(log.quantity), log.unit)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[var(--muted)]">
+                    {log.rate == null
+                      ? "—"
+                      : `${formatIndianRupee(Number(log.rate))} / ${log.unit.toUpperCase()}`}
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold tabular-nums">
+                    {log.amount == null ? "—" : formatIndianRupee(Number(log.amount))}
                   </td>
                   <td className="px-4 py-3 text-[var(--muted)]">
                     {log.notes || "—"}
